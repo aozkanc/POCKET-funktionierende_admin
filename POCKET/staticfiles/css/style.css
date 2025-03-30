@@ -1,0 +1,232 @@
+/* ================== NAVBAR ================== */
+.custom-navbar {
+    background-color: #3f63b1 !important;
+}
+
+.custom-navbar .container-fluid {
+    padding-left: 30px;
+    padding-right: 30px;
+}
+
+.custom-navbar .navbar-brand,
+.custom-navbar .nav-link {
+    color: #fff !important;
+}
+
+.custom-navbar .nav-link:hover,
+.custom-navbar .navbar-brand:hover {
+    color: #b5e9f4 !important;
+}
+.custom-navbar .nav-link,
+.custom-navbar .navbar-brand {
+    transition: color 0.3s ease;
+}
+
+/* ================== GENEL ================== */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 32px;
+    color: #222;
+}
+
+/* ================== TABLO (ortak) ================== */
+.ab-tabelle thead th { 
+    background-color: #b5e9f4;
+    color: #000;
+    text-align: center;
+    vertical-align: middle;
+    font-weight: 600;
+    border: 1px solid #7e90b7;
+}
+
+.ab-tabelle td {
+    padding: 8px 12px;
+}
+
+.ab-actions a {
+    color: #3f63b1;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.ab-actions a:hover {
+    text-decoration: underline;
+    color: #1e40af; 
+} 
+
+/* ================== BUTONLAR ================== */
+.ab-btn-custom {
+    background-color: #b5e9f4;
+    color: #000;
+    border: 1px solid #7e90b7;
+    padding: 8px 16px;
+    font-weight: 500;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.ab-btn-custom:hover {
+    background-color: #5acbe4;
+    border-color: #7e90b7;
+}
+
+.plus-symbol,
+.export-symbol {
+    color: black;
+    margin-right: 5px;
+}
+
+.ab-btn-add {
+    width: 240px;
+    height: 44px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.ab-btn-exp {
+    width: 150px;
+    height: 44px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.ab-primary-btn {
+    background-color: #3f63b1;
+    border-color: #2563eb;
+    color: white;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 5px;
+    border: 1px solid #2563eb;
+    transition: background-color 0.3s ease;
+}
+
+.ab-primary-btn:hover {
+    background-color: #1e40af;
+    border-color: #1e40af;
+    color: white;
+}
+
+/* ================== ARAMA ================== */
+.ab-search {
+    min-width: 330px;
+    max-width: 400px;
+    flex-grow: 1;
+}
+
+#abordnungSearch {
+    border: 1px solid #7e90b7;
+}
+
+/* ================== FİLTRE PANELİ ================== */
+.ab-filter-box {
+    background-color: #b5e9f4;
+    border: 1px solid #7e90b7;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.ab-filter-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.ab-filter-box .form-control,
+.ab-filter-box button {
+    margin-bottom: 12px;
+}
+
+.ab-filter-date {
+    display: flex;
+    gap: 8px;
+}
+
+.ab-filter-box .btn-primary {
+    background-color: #3f63b1;
+    border-color: #2563eb;
+    color: white;
+}
+
+.ab-filter-box .btn-primary:hover {
+    background-color: #1e40af;
+    border-color: #1e40af;
+}
+
+/* ================== MODAL ================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 50%;
+    max-width: 600px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+/* X Kapat Butonu */
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background-color: #3f63b1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    text-align: center;
+    line-height: 28px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.modal-close:hover {
+    background-color: #1e40af;
+}
+
+
+/* DASHBOARD */
+
+.btn-light:hover {
+    background-color: #b5e9f4 !important;
+    border-color: #7e90b7 !important;
+    color: #000 !important;
+}
+
+.dashboard-chart {
+    max-width: 350px !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 0 auto !important;
+}
+

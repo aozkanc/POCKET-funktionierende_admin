@@ -1,0 +1,30 @@
+<h2>Projektteam: {{ projekt.projektname }}</h2>
+
+<table border="1">
+    <tr>
+        <th>Name</th>
+        <th>Standort</th>
+        <th>Abteilung</th>
+        <th>Rolle</th>
+        <th>Status</th>
+        <th>E-Mail</th>
+        <th>Profilbild</th>
+    </tr>
+    {% for mitarbeiter in mitarbeiter_liste %}
+        <tr>
+            <td>{{ mitarbeiter.vorname }} {{ mitarbeiter.nachname }}</td>
+            <td>{{ mitarbeiter.standort }}</td>  <!-- ✅ Artık Standort gösteriliyor -->
+            <td>{{ mitarbeiter.abteilung }}</td>
+            <td>{{ mitarbeiter.rolle }}</td>
+            <td>{{ mitarbeiter.status }}</td>
+            <td><a href="mailto:{{ mitarbeiter.benutzer.email }}">{{ mitarbeiter.benutzer.email }}</a></td>
+            <td>
+                {% if mitarbeiter.profil_bild %}
+                    <img src="{{ mitarbeiter.profil_bild.url }}" width="50">
+                {% else %}
+                    ❌ Kein Bild
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+
+    <h2 class="page-title">📊 Admin-Dashboard</h2>
+    <p>Willkommen, {{ user.username }}!</p>
+
+    <!-- 💸 Finanzübersicht + Genel Sayılar -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">💰 Gesamtkosten</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title">{{ total_kosten|floatformat:2 }} €</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">📁 Projektgebundene Kosten</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title">{{ projektgebundene_kosten|floatformat:2 }} €</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">🏢 Allgemeine Kosten</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title">{{ allgemeine_kosten|floatformat:2 }} €</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grafikler -->
+    <div class="row mb-4">
+        <div class="col-md-6 text-center">
+        <h5> Kostenverteilung nach Kategorie</h5>
+        <canvas id="kostenKategorieChart"
+                class="dashboard-chart"
+                data-abrechnung="{{ category_data.Abrechnung|default:0 }}"
+                data-reise="{{ category_data.Reise|default:0 }}"
+                data-schulung="{{ category_data.Schulung|default:0 }}">
+        </canvas>
+        </div>
+    
+        <div class="col-md-6 text-center">
+        <h5> Projektgebundene vs Allgemeine Kosten</h5>
+        <canvas id="kostenProjektAllgemeinChart"
+                class="dashboard-chart"
+                data-projekt="{{ projektgebundene_kosten|floatformat:2 }}"
+                data-allgemein="{{ allgemeine_kosten|floatformat:2 }}">
+        </canvas>
+        </div>
+    </div>
+
+    <!-- 🔗 Navigasyon Linkleri -->
+
+    <!-- Üst sıra (3 kutu) -->
+    <div class="row row-cols-1 row-cols-md-3 g-3 mt-4">
+    <div class="col">
+        <a href="{% url 'admin_projekte' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        📁 Projekte<br><small class="text-muted">Verwalten & Exportieren</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_projekte }}
+        </span>
+        </a>
+    </div>
+
+    <div class="col">
+        <a href="{% url 'admin_mitarbeiter' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        👥 Mitarbeiter<br><small class="text-muted">Alle Mitarbeitenden</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_mitarbeiter }}
+        </span>
+        </a>
+    </div>
+
+    <div class="col">
+        <a href="{% url 'admin_abordnung' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        📌 Abordnungen<br><small class="text-muted">Projekteinsätze</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_abordnungen }}
+        </span>
+        </a>
+    </div>
+    </div>
+
+    <!-- Alt sıra (3 kutu) + export -->
+    <div class="row row-cols-1 row-cols-md-4 g-3 mt-2 align-items-stretch">
+    <div class="col">
+        <a href="{% url 'admin_reisebericht' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        🧳 Reisen<br><small class="text-muted">Fahrt & Hotelkosten</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_reisen }}
+        </span>
+        </a>
+    </div>
+
+    <div class="col">
+        <a href="{% url 'admin_schulungskosten' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        📚 Schulungen<br><small class="text-muted">Kurse & Kosten</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_schulungen }}
+        </span>
+        </a>
+    </div>
+
+    <div class="col">
+        <a href="{% url 'admin_abrechnung' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+        🧾 Abrechnungen<br><small class="text-muted">Leistungsnachweise</small>
+        <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+            {{ total_abrechnungen }}
+        </span>
+        </a>
+    </div>
+
+    <!-- Export butonu -->
+    <div class="col text-center d-flex align-items-center justify-content-center">
+        <a href="{% url 'export_finanzübersicht' %}" class="btn btn-outline-secondary btn-sm mt-2">
+        📤 Finanzübersicht exportieren (CSV)
+        </a>
+    </div>
+    </div>
+
+
+</div>
+<!-- Chart.js kütüphanesi -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Dashboard grafik mantığı -->
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

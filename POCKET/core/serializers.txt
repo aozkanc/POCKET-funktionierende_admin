@@ -1,0 +1,70 @@
+from django.shortcuts import render
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from .models import Mitarbeiter, Projekt, Abrechnung, Reisekosten, Schulungskosten, Abordnung, ProjektMitarbeiter
+from .serializers import MitarbeiterSerializer, ProjektSerializer, AbrechnungSerializer, ReisekostenSerializer, SchulungskostenSerializer, AbordnungSerializer, ProjektMitarbeiterSerializer
+
+class MitarbeiterViewSet(viewsets.ModelViewSet):
+    serializer_class = MitarbeiterSerializer
+    permission_classes = [IsAuthenticated]
+
+class ProjektViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjektSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            mitarbeiter_instance = Mitarbeiter.objects.get(user=user)  # 🔹 User'dan Mitarbeiter bul
+            return Projekt.objects.filter(projektmitarbeiter__mitarbeiter=mitarbeiter_instance)
+        return Projekt.objects.all()
+
+class AbrechnungViewSet(viewsets.ModelViewSet):
+    serializer_class = AbrechnungSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            return Abrechnung.objects.filter(mitarbeiter=user)
+        return Abrechnung.objects.all()
+
+class ReisekostenViewSet(viewsets.ModelViewSet):
+    serializer_class = ReisekostenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            return Reisekosten.objects.filter(mitarbeiter=user)
+        return Reisekosten.objects.all()
+
+class SchulungskostenViewSet(viewsets.ModelViewSet):
+    serializer_class = SchulungskostenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            return Schulungskosten.objects.filter(mitarbeiter=user)
+        return Schulungskosten.objects.all()
+
+class AbordnungViewSet(viewsets.ModelViewSet):
+    serializer_class = AbordnungSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            return Abordnung.objects.filter(mitarbeiter=user)
+        return Abordnung.objects.all()
+
+class ProjektMitarbeiterViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjektMitarbeiterSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name="Mitarbeiter").exists():
+            return ProjektMitarbeiter.objects.filter(mitarbeiter=user)
+        return ProjektMitarbeiter.objects.all()

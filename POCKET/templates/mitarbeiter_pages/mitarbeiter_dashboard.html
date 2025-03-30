@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2 class="page-title">👋 Willkommen, {{ user.first_name }}!</h2>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <!-- 📁 Eigene Projekte -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">📁 Deine Projekte</div>
+        <div class="card-body">
+            {% if projekte %}
+                <ul>
+                    {% for p in projekte %}
+                        <li>{{ p.projektname }} ({{ p.status }})</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Du bist aktuell keinem Projekt zugewiesen.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 🧳 Eigene Reisen -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">🧳 Deine Reisen</div>
+        <div class="card-body">
+            {% if reisen %}
+                <ul>
+                    {% for r in reisen %}
+                        <li>{{ r.datum|date:"d.m.Y" }} – {{ r.zielort }} ({{ r.kosten_fahrt|floatformat:2 }} € Fahrtkosten)</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Keine Reisen erfasst.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 📚 Eigene Schulungen -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">📚 Deine Schulungen</div>
+        <div class="card-body">
+            {% if schulungen %}
+                <ul>
+                    {% for s in schulungen %}
+                        <li>{{ s.schulungstitel }} ({{ s.kosten }} €)</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Keine Schulungskosten erfasst.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 🧾 Eigene Abrechnungen -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">🧾 Deine Abrechnungen</div>
+        <div class="card-body">
+            {% if abrechnungen %}
+                <ul>
+                    {% for a in abrechnungen %}
+                        <li>{{ a.monat }} – {{ a.netto_summe }} € Netto</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Keine Abrechnungen verfügbar.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

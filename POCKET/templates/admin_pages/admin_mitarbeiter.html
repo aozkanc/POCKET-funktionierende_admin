@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2 class="page-title">👤 Mitarbeiter verwalten</h2>
+
+    <div class="d-flex flex-wrap gap-3">
+
+        <!-- 📋 Sol: Arama + Tablo -->
+        <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addMitarbeiterModal')">
+                    <span class="plus-symbol">➕</span> Mitarbeiter hinzufügen
+                </button>
+                <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
+                    <input type="text" id="mitarbeiterSearch" class="form-control ab-search" placeholder="🔍 Nach Name, Rolle oder Abteilung suchen...">
+                    <a href="{% url 'export_mitarbeiter' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp">
+                        <span class="export-symbol">📤</span> Exportieren
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered ab-tabelle" id="mitarbeiterTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortMitarbeiterTable(0)">Vorname 🔽</th>
+                            <th onclick="sortMitarbeiterTable(1)">Nachname 🔽</th>
+                            <th onclick="sortMitarbeiterTable(2)">Standort 🔽</th>
+                            <th onclick="sortMitarbeiterTable(3)">Abteilung 🔽</th>
+                            <th onclick="sortMitarbeiterTable(4)">Status 🔽</th>
+                            <th onclick="sortMitarbeiterTable(5)">Rolle 🔽</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in mitarbeiter %}
+                            <tr>
+                                <td>{{ m.vorname }}</td>
+                                <td>{{ m.nachname }}</td>
+                                <td>{{ m.standort }}</td>
+                                <td>{{ m.abteilung }}</td>
+                                <td>{{ m.status }}</td>
+                                <td>{{ m.rolle }}</td>
+                                <td class="ab-actions">
+                                    <a href="#" class="edit-mitarbeiter-btn"
+                                       data-id="{{ m.id }}"
+                                       data-vorname="{{ m.vorname|escapejs }}"
+                                       data-nachname="{{ m.nachname|escapejs }}"
+                                       data-standort="{{ m.standort|escapejs }}"
+                                       data-erstetaetigkeitsstaette="{{ m.erste_taetigkeitsstaette|escapejs }}"
+                                       data-abteilung="{{ m.abteilung|escapejs }}"
+                                       data-status="{{ m.status|escapejs }}"
+                                       data-rolle="{{ m.rolle|escapejs }}">
+                                       ✏️ Bearbeiten
+                                    </a>
+                                    |
+                                    <a href="{% url 'admin_mitarbeiter_delete' m.id %}" onclick="return confirm('❗Mitarbeiter wirklich löschen?')">🗑️ Löschen</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 🎯 Sağdaki filtre kutusu -->
+        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px; height: fit-content;">
+            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
+            <form method="get" class="d-grid gap-2">
+                <input type="text" name="vorname" class="form-control" placeholder="Vorname" value="{{ request.GET.vorname }}">
+                <input type="text" name="nachname" class="form-control" placeholder="Nachname" value="{{ request.GET.nachname }}">
+
+                <select name="rolle" class="form-control">
+                    <option value="">🔽Rolle wählen</option>
+                    <option value="Manager" {% if request.GET.rolle == 'Manager' %}selected{% endif %}>Manager</option>
+                    <option value="Mitarbeiter" {% if request.GET.rolle == 'Mitarbeiter' %}selected{% endif %}>Mitarbeiter</option>
+                </select>
+
+                <input type="text" name="abteilung" class="form-control" placeholder="Abteilung" value="{{ request.GET.abteilung }}">
+
+                <select name="status" class="form-control">
+                    <option value="">🔽Status wählen</option>
+                    <option value="intern" {% if request.GET.status == 'intern' %}selected{% endif %}>Intern</option>
+                    <option value="freelancer" {% if request.GET.status == 'freelancer' %}selected{% endif %}>Freelancer</option>
+                </select>
+
+                <button type="submit" class="btn btn-primary mt-2">Filtern</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ➕ Modal - Mitarbeiter hinzufügen -->
+<div id="addMitarbeiterModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('addMitarbeiterModal', false)">×</button>
+        <h2>Neuen Mitarbeiter hinzufügen</h2>
+        <form method="POST" action="{% url 'admin_mitarbeiter' %}">
+            {% csrf_token %}
+            <label>Vorname:</label>
+            <input type="text" name="vorname" class="form-control" required>
+
+            <label>Nachname:</label>
+            <input type="text" name="nachname" class="form-control" required>
+
+            <label>Standort:</label>
+            <input type="text" name="standort" class="form-control" required>
+
+            <label>1. Tätigkeitsstätte:</label>
+            <input type="text" name="erste_taetigkeitsstaette" class="form-control" required>
+
+            <label>Abteilung:</label>
+            <input type="text" name="abteilung" class="form-control" required>
+
+            <label>Status:</label>
+            <select name="status" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="intern">Intern</option>
+                <option value="freelancer">Freelancer</option>
+            </select>
+
+            <label>Rolle:</label>
+            <select name="rolle" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="Manager">Manager</option>
+                <option value="Mitarbeiter">Mitarbeiter</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✏️ Modal - Mitarbeiter bearbeiten -->
+<div id="editMitarbeiterModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editMitarbeiterModal', false)">×</button>
+        <h2>Mitarbeiter bearbeiten</h2>
+        <form method="POST" action="{% url 'admin_mitarbeiter' %}">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Vorname:</label>
+            <input type="text" name="vorname" id="edit_vorname" class="form-control" required>
+
+            <label>Nachname:</label>
+            <input type="text" name="nachname" id="edit_nachname" class="form-control" required>
+
+            <label>Standort:</label>
+            <input type="text" name="standort" id="edit_standort" class="form-control" required>
+
+            <label>1. Tätigkeitsstätte:</label>
+            <input type="text" name="erste_taetigkeitsstaette" id="edit_erstetaetigkeitsstaette" class="form-control" required>
+
+            <label>Abteilung:</label>
+            <input type="text" name="abteilung" id="edit_abteilung" class="form-control" required>
+
+            <label>Status:</label>
+            <select name="status" id="edit_status" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="intern">Intern</option>
+                <option value="freelancer">Freelancer</option>
+            </select>
+
+            <label>Rolle:</label>
+            <select name="rolle" id="edit_rolle" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="Manager">Manager</option>
+                <option value="Mitarbeiter">Mitarbeiter</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/admin_mitarbeiter.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2 class="page-title">🧾 Reiseberichte verwalten</h2>
+
+    <div class="d-flex flex-wrap gap-3">
+
+        <!-- 📋 Sol: Arama + Liste -->
+        <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addReiseberichtModal')">
+                    <span class="plus-symbol">➕</span> Neue Reise erfassen
+                </button>
+                <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
+                    <input type="text" id="reiseberichtSearch" class="form-control ab-search" placeholder="🔍 Nach Zielort, Zweck, Mitarbeiter...">
+                    <a href="{% url 'export_reisebericht' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp">
+                        <span class="export-symbol">📤</span> Exportieren
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered ab-tabelle" id="reiseberichtTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortReiseberichtTable(0)">Datum 🔽</th>
+                            <th onclick="sortReiseberichtTable(1)">Mitarbeiter 🔽</th>
+                            <th onclick="sortReiseberichtTable(2)">Projekt 🔽</th>
+                            <th onclick="sortReiseberichtTable(3)">Zielort 🔽</th>
+                            <th onclick="sortReiseberichtTable(4)">Gesamtkosten (€) 🔽</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reiseberichte %}
+                        <tr>
+                            <td>{{ r.datum|date:"d.m.Y" }}</td>
+                            <td>{{ r.mitarbeiter.vorname }} {{ r.mitarbeiter.nachname }}</td>
+                            <td>
+                                {% if r.projekt %}
+                                    {{ r.projekt.projektname }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ r.zielort }}</td>
+                            <td>{{ r.gesamtkosten }}</td>
+                            <td class="ab-actions">
+                                <a href="#" class="edit-reisebericht-btn"
+                                   data-id="{{ r.id }}"
+                                   data-mitarbeiter-id="{{ r.mitarbeiter.id }}"
+                                   {% if r.projekt %}data-projekt-id="{{ r.projekt.id }}"{% endif %}
+                                   data-datum="{{ r.datum|date:'Y-m-d' }}"
+                                   data-zielort="{{ r.zielort|escapejs }}"
+                                   data-zweck="{{ r.zweck|escapejs }}"
+                                   data-verkehrsmittel="{{ r.verkehrsmittel|escapejs }}"
+                                   data-distanz-km="{{ r.distanz_km }}"
+                                   data-kosten-fahrt="{{ r.kosten_fahrt }}"
+                                   data-hotel-name="{{ r.hotel_name|default_if_none:''|escapejs }}"
+                                   data-kosten-uebernachtung="{{ r.kosten_übernachtung }}"
+                                   data-rechnung="{{ r.rechnung_vorhanden }}">
+                                   ✏️ Bearbeiten
+                                </a>
+                                |
+                                <a href="{% url 'admin_reisebericht_delete' r.id %}" onclick="return confirm('❗Wirklich löschen?')">🗑️ Löschen</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Keine Einträge gefunden.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- 📄 Pagination -->
+            <div class="pagination mt-3">
+                <span class="step-links">
+                    {% if reiseberichte.has_previous %}
+                        <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; erste</a>
+                        <a href="?page={{ reiseberichte.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">zurück</a>
+                    {% endif %}
+
+                    <span class="current">
+                        Seite {{ reiseberichte.number }} von {{ reiseberichte.paginator.num_pages }}.
+                    </span>
+
+                    {% if reiseberichte.has_next %}
+                        <a href="?page={{ reiseberichte.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">weiter</a>
+                        <a href="?page={{ reiseberichte.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">letzte &raquo;</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- 🎯 Filtre Kutusu -->
+        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px;">
+            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
+            <form method="get" class="d-grid gap-2">
+                <select name="mitarbeiter_id" class="form-control">
+                    <option value="">👤 Alle Mitarbeiter</option>
+                    {% for m in mitarbeiter %}
+                        <option value="{{ m.id }}" {% if request.GET.mitarbeiter_id == m.id|stringformat:"s" %}selected{% endif %}>
+                            {{ m.vorname }} {{ m.nachname }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select name="projekt_id" class="form-control">
+                    <option value="">📁 Alle Projekte</option>
+                    {% for p in projekte %}
+                        <option value="{{ p.id }}" {% if request.GET.projekt_id == p.id|stringformat:"s" %}selected{% endif %}>
+                            {{ p.projektname }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
+                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
+
+                <label>
+                    <input type="checkbox" name="nur_mit_hotel" value="1" {% if request.GET.nur_mit_hotel %}checked{% endif %}>
+                    Nur mit Hotel
+                </label>
+
+                <button type="submit" class="btn btn-primary">Filtern</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal kodları burada olacak (add/edit modal) -->
+<div id="addReiseberichtModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('addReiseberichtModal', false)">×</button>
+        <h2>Neue Reise erfassen</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Projekt (optional):</label>
+            <select name="projekt_id" class="form-control">
+                <option value="">- Kein Projekt -</option>
+                {% for p in projekte %}
+                    <option value="{{ p.id }}">{{ p.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Datum:</label>
+            <input type="date" name="datum" class="form-control" required>
+
+            <label>Zielort:</label>
+            <input type="text" name="zielort" class="form-control" required>
+
+            <label>Zweck:</label>
+            <input type="text" name="zweck" class="form-control" required>
+
+            <label>Verkehrsmittel:</label>
+            <input type="text" name="verkehrsmittel" class="form-control" required>
+
+            <label>Distanz (km):</label>
+            <input type="number" name="distanz_km" class="form-control" required>
+
+            <label>Fahrtkosten (€):</label>
+            <input type="number" name="kosten_fahrt" step="0.01" class="form-control" required>
+
+            <label>Hotel (optional):</label>
+            <input type="text" name="hotel_name" class="form-control">
+
+            <label>Übernachtungskosten (€):</label>
+            <input type="number" name="kosten_übernachtung" step="0.01" class="form-control">
+
+            <label>Rechnung vorhanden:</label>
+            <select name="rechnung_vorhanden" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                <option value="Ja">Ja</option>
+                <option value="Nein">Nein</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<div id="editReiseberichtModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editReiseberichtModal', false)">×</button>
+        <h2>Reisebericht bearbeiten</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" id="edit_mitarbeiter_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Projekt (optional):</label>
+            <select name="projekt_id" id="edit_projekt_id" class="form-control">
+                <option value="">- Kein Projekt -</option>
+                {% for p in projekte %}
+                    <option value="{{ p.id }}">{{ p.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Datum:</label>
+            <input type="date" name="datum" id="edit_datum" class="form-control" required>
+
+            <label>Zielort:</label>
+            <input type="text" name="zielort" id="edit_zielort" class="form-control" required>
+
+            <label>Zweck:</label>
+            <input type="text" name="zweck" id="edit_zweck" class="form-control" required>
+
+            <label>Verkehrsmittel:</label>
+            <input type="text" name="verkehrsmittel" id="edit_verkehrsmittel" class="form-control" required>
+
+            <label>Distanz (km):</label>
+            <input type="number" name="distanz_km" id="edit_distanz_km" class="form-control" required>
+
+            <label>Fahrtkosten (€):</label>
+            <input type="number" name="kosten_fahrt" id="edit_kosten_fahrt" step="0.01" class="form-control" required>
+
+            <label>Hotel (optional):</label>
+            <input type="text" name="hotel_name" id="edit_hotel_name" class="form-control">
+
+            <label>Übernachtungskosten (€):</label>
+            <input type="number" name="kosten_übernachtung" id="edit_kosten_uebernachtung" step="0.01" class="form-control">
+
+            <label>Rechnung vorhanden:</label>
+            <select name="rechnung_vorhanden" id="edit_rechnung" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                <option value="Ja">Ja</option>
+                <option value="Nein">Nein</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/admin_reisebericht.js' %}"></script>
+{% endblock %}

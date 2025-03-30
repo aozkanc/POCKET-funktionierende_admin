@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2 class="page-title">📋 Manager Dashboard</h2>
+  <p>Willkommen, {{ user.username }}!</p>
+
+  <div class="row g-3 mt-4">
+    <div class="col-md-6">
+      <div class="card bg-light border">
+        <div class="card-header">📁 Eigene Projekte</div>
+        <div class="card-body">
+          <h4 class="card-title">{{ total_projekte }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card bg-light border">
+        <div class="card-header">🧾 Abrechnungen (eigene Projekte)</div>
+        <div class="card-body">
+          <h4 class="card-title">{{ total_abrechnungen }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+    
+    <h2 class="page-title">📁 Projekte verwalten</h2>
+
+    <div class="d-flex flex-wrap gap-3">
+
+        <!-- 📋 Sol alan: Arama + Tablo -->
+        <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addProjektModal')">
+                    <span class="plus-symbol">➕</span> Projekt hinzufügen
+                </button>
+                <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
+                    <input type="text" id="projektSearch" class="form-control ab-search" placeholder="🔍 Projekt suchen...">
+                    <a href="{% url 'export_projekte' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp">
+                        <span class="export-symbol">📤</span> Exportieren
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered ab-tabelle" id="projektTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortProjektTable(0)">Projektname 🔽</th>
+                            <th onclick="sortProjektTable(1)">Kunde 🔽</th>
+                            <th onclick="sortProjektTable(2)">Startdatum 🔽</th>
+                            <th onclick="sortProjektTable(3)">Status 🔽</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for projekt in projekte %}
+                            <tr>
+                                <td>{{ projekt.projektname }}</td>
+                                <td>{{ projekt.kunde_1 }}</td>
+                                <td>{{ projekt.startdatum|date:"d.m.Y" }}</td>
+                                <td>{{ projekt.status }}</td>
+                                <td class="ab-actions">
+                                    <a href="#" class="edit-projekt-btn"
+                                       data-id="{{ projekt.id }}"
+                                       data-projektname="{{ projekt.projektname|escapejs }}"
+                                       data-startdatum="{{ projekt.startdatum|date:'Y-m-d' }}"
+                                       data-enddatum="{{ projekt.enddatum|date:'Y-m-d' }}"
+                                       data-budget="{{ projekt.budget }}"
+                                       data-kunde_1="{{ projekt.kunde_1|escapejs }}"
+                                       data-kunde_2="{{ projekt.kunde_2|default:''|escapejs }}"
+                                       data-projekttyp="{{ projekt.projekttyp|escapejs }}"
+                                       data-status="{{ projekt.status|escapejs }}"
+                                       data-beschreibung="{{ projekt.beschreibung|default:''|escapejs }}">
+                                       ✏️ Bearbeiten
+                                    </a>
+                                    |
+                                    <a href="{% url 'admin_projekt_delete' projekt.id %}" onclick="return confirm('❗Projekt wirklich löschen?')">🗑️ Löschen</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Sayfalama (Pagination) -->
+            <div class="pagination">
+                <span class="step-links">
+                    {% if projekte.has_previous %}
+                        <a href="?page=1">&laquo; erste</a>
+                        <a href="?page={{ projekte.previous_page_number }}">previous</a>
+                    {% endif %}
+
+                    <span class="current">
+                        Page {{ projekte.number }} of {{ projekte.paginator.num_pages }}.
+                    </span>
+
+                    {% if projekte.has_next %}
+                        <a href="?page={{ projekte.next_page_number }}">next</a>
+                        <a href="?page={{ projekte.paginator.num_pages }}">last &raquo;</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- 🎯 Sag filtre kutusu (opsiyonel) -->
+        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px; height: fit-content;">
+            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
+            <form method="get" class="d-grid gap-2">
+                <input type="text" name="projektname" class="form-control" placeholder="Projektname" value="{{ request.GET.projektname }}">
+                <input type="text" name="kunde" class="form-control" placeholder="Kunde" value="{{ request.GET.kunde }}">
+                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
+                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
+                <select name="status" class="form-control">
+                    <option value="">🔽Status wählen</option>
+                    <option value="geplant" {% if request.GET.status == 'geplant' %}selected{% endif %}>Geplant</option>
+                    <option value="laufend" {% if request.GET.status == 'laufend' %}selected{% endif %}>Laufend</option>
+                    <option value="abgeschlossen" {% if request.GET.status == 'abgeschlossen' %}selected{% endif %}>Abgeschlossen</option>
+                </select>
+                <button type="submit" class="btn btn-primary mt-2">Filtern</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal - Projekt hinzufügen -->
+<div id="addProjektModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('addProjektModal', false)">×</button>
+        <h2>Neues Projekt hinzufügen</h2>
+        <form method="POST" action="{% url 'admin_projekte' %}">
+            {% csrf_token %}
+
+            <label>Projektname:</label>
+            <input type="text" name="projektname" class="form-control" required>
+
+            <label>Startdatum:</label>
+            <input type="date" name="startdatum" class="form-control" required>
+
+            <label>Enddatum:</label>
+            <input type="date" name="enddatum" class="form-control" required>
+
+            <label>Budget (€):</label>
+            <input type="number" name="budget" step="0.01" class="form-control" required>
+
+            <label>Kunde 1:</label>
+            <input type="text" name="kunde_1" class="form-control" required>
+
+            <label>Kunde 2 (optional):</label>
+            <input type="text" name="kunde_2" class="form-control">
+
+            <label>Projekttyp:</label>
+            <input type="text" name="projekttyp" class="form-control" required>
+
+            <label>Status:</label>
+            <select name="status" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                <option value="geplant">Geplant</option>
+                <option value="laufend">Laufend</option>
+                <option value="abgeschlossen">Abgeschlossen</option>
+            </select>
+
+            <label>Beschreibung:</label>
+            <textarea name="beschreibung" class="form-control" rows="3"></textarea>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal - Projekt Bearbeiten -->
+<div id="editProjektModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editProjektModal', false)">×</button>
+        <h2>Projekt bearbeiten</h2>
+        <form method="POST" action="{% url 'admin_projekte' %}">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Projektname:</label>
+            <input type="text" name="projektname" id="edit_projektname" class="form-control" required>
+
+            <label>Startdatum:</label>
+            <input type="date" name="startdatum" id="edit_startdatum" class="form-control" required>
+
+            <label>Enddatum:</label>
+            <input type="date" name="enddatum" id="edit_enddatum" class="form-control" required>
+
+            <label>Budget (€):</label>
+            <input type="number" name="budget" id="edit_budget" step="0.01" class="form-control" required>
+
+            <label>Kunde 1:</label>
+            <input type="text" name="kunde_1" id="edit_kunde_1" class="form-control" required>
+
+            <label>Kunde 2 (optional):</label>
+            <input type="text" name="kunde_2" id="edit_kunde_2" class="form-control">
+
+            <label>Projekttyp:</label>
+            <input type="text" name="projekttyp" id="edit_projekttyp" class="form-control" required>
+
+            <label>Status:</label>
+            <select name="status" id="edit_status" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                <option value="geplant">Geplant</option>
+                <option value="laufend">Laufend</option>
+                <option value="abgeschlossen">Abgeschlossen</option>
+            </select>
+
+            <label>Beschreibung:</label>
+            <textarea name="beschreibung" id="edit_beschreibung" class="form-control" rows="3"></textarea>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✏️ Modal - Mitarbeiter bearbeiten -->
+<div id="editMitarbeiterModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editMitarbeiterModal', false)">×</button>
+        <h2>Mitarbeiter bearbeiten</h2>
+        <form method="POST" action="{% url 'admin_mitarbeiter' %}">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Vorname:</label>
+            <input type="text" name="vorname" id="edit_vorname" class="form-control" required>
+
+            <label>Nachname:</label>
+            <input type="text" name="nachname" id="edit_nachname" class="form-control" required>
+
+            <label>Standort:</label>
+            <input type="text" name="standort" id="edit_standort" class="form-control" required>
+
+            <label>1. Tätigkeitsstätte:</label>
+            <input type="text" name="erste_taetigkeitsstaette" id="edit_erstetaetigkeitsstaette" class="form-control" required>
+
+            <label>Abteilung:</label>
+            <input type="text" name="abteilung" id="edit_abteilung" class="form-control" required>
+
+            <label>Status:</label>
+            <select name="status" id="edit_status" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="intern">Intern</option>
+                <option value="freelancer">Freelancer</option>
+            </select>
+
+            <label>Rolle:</label>
+            <select name="rolle" id="edit_rolle" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="Manager">Manager</option>
+                <option value="Mitarbeiter">Mitarbeiter</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/admin_projekte.js' %}"></script>
+{% endblock %}

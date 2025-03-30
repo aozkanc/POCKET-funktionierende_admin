@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+
+    <h2 class="page-title">📌 Abordnungen verwalten</h2>
+
+    <!-- 🧩 Ana düzen: Tablo ve sağ filtre kutusu -->
+    <div class="d-flex flex-wrap gap-3">
+
+        <!-- 📋 Sol alan: Arama + Tablo -->
+        <div class="flex-grow-1">
+
+            <!-- 🔍 Arama ve export üst paneli -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <!-- Sol: Abordnung hinzufügen -->
+                <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('abordnungModal')">
+                    <span class="plus-symbol">➕</span> Abordnung hinzufügen
+                </button>
+                
+                <!-- Sağ: Arama + Exportieren -->
+                <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
+                    <input type="text" id="abordnungSearch" class="form-control ab-search" placeholder="🔍 Nach Projekt oder Mitarbeiter suchen...">
+                    <a href="{% url 'export_abordnung' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp export-btn">
+                        <span class="export-symbol">📤</span> Exportieren
+                    </a>
+                </div>
+            </div>
+
+            <!-- 📊 Tablonun kendisi -->
+            <div class="table-responsive">
+                <table class="table table-bordered ab-tabelle" id="abordnungTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortAbordnungTable(0)">Projekt 🔽</th>
+                            <th onclick="sortAbordnungTable(1)">Mitarbeiter 🔽</th>
+                            <th onclick="sortAbordnungTable(2)">Startdatum 🔽</th>
+                            <th onclick="sortAbordnungTable(3)">Enddatum 🔽</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if abordnungen %}
+                            {% for eintrag in abordnungen %}
+                                <tr>
+                                    <td>{{ eintrag.projekt.projektname }}</td>
+                                    <td>{{ eintrag.mitarbeiter.vorname }} {{ eintrag.mitarbeiter.nachname }} ({{ eintrag.mitarbeiter.rolle }})</td>
+                                    <td>{{ eintrag.zeitraum_start|date:"d.m.Y" }}</td>
+                                    <td>{{ eintrag.zeitraum_ende|date:"d.m.Y" }}</td>
+                                    <td class="ab-actions">
+                                        <a href="#" class="edit-abordnung-btn"
+                                            data-id="{{ eintrag.id }}"
+                                            data-projekt-id="{{ eintrag.projekt.id }}"
+                                            data-mitarbeiter-id="{{ eintrag.mitarbeiter.id }}"
+                                            data-startdatum="{{ eintrag.zeitraum_start|date:'Y-m-d' }}"
+                                            data-enddatum="{{ eintrag.zeitraum_ende|date:'Y-m-d' }}">
+                                            ✏️ Bearbeiten
+                                            </a> |                                      
+                                        <a href="{% url 'admin_abordnung_delete' eintrag.id %}" onclick="return confirm('❗Abordnung wirklich löschen?')">🗑️ Löschen</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">Keine Abordnungen gefunden.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Sayfalama (Paginator) -->
+            <div class="pagination">
+                <span class="step-links">
+                    {% if abordnungen.has_previous %}
+                        <a href="?page=1">&laquo; erste</a>
+                        <a href="?page={{ abordnungen.previous_page_number }}">previous</a>
+                    {% endif %}
+
+                    <span class="current">
+                        Page {{ abordnungen.number }} of {{ abordnungen.paginator.num_pages }}.
+                    </span>
+
+                    {% if abordnungen.has_next %}
+                        <a href="?page={{ abordnungen.next_page_number }}">next</a>
+                        <a href="?page={{ abordnungen.paginator.num_pages }}">last &raquo;</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <!-- 🎯 Sağdaki filtre paneli -->
+        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px; height: fit-content;">
+            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
+            <form method="get" class="d-grid gap-2">
+
+                <!-- 📁 Projekt -->
+                <select name="projekt_id" class="form-control">
+                    <option value="">🔽 Alle Projekte</option>
+                    {% for projekt in projekte %}
+                        <option value="{{ projekt.id }}" {% if projekt.id|stringformat:"s" == request.GET.projekt_id %}selected{% endif %}>
+                            {{ projekt.projektname }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <!-- 👤 Mitarbeiter -->
+                <select name="mitarbeiter_id" class="form-control">
+                    <option value="">🔽 Alle Mitarbeiter</option>
+                    {% for m in mitarbeiter %}
+                        <option value="{{ m.id }}" {% if m.id|stringformat:"s" == request.GET.mitarbeiter_id %}selected{% endif %}>
+                            {{ m.vorname }} {{ m.nachname }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <!-- 📅 Tarihler -->
+                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
+                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
+
+                <button type="submit" class="btn btn-primary mt-2">Filtern</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- ➕ Modal - Abordnung hinzufügen -->
+<div id="abordnungModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('abordnungModal', false)">×</button>
+        <h2>Neue Abordnung hinzufügen</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <label>Projekt:</label>
+            <select name="projekt_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for projekt in projekte %}
+                    <option value="{{ projekt.id }}">{{ projekt.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Startdatum:</label>
+            <input type="date" name="zeitraum_start" class="form-control" required>
+
+            <label>Enddatum:</label>
+            <input type="date" name="zeitraum_ende" class="form-control" required>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✏️ Modal - Abordnung bearbeiten -->
+<div id="editAbordnungModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editAbordnungModal', false)">×</button>
+        <h2>Abordnung bearbeiten</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Projekt:</label>
+            <select name="projekt_id" id="edit_projekt_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for projekt in projekte %}
+                    <option value="{{ projekt.id }}">{{ projekt.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" id="edit_mitarbeiter_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Startdatum:</label>
+            <input type="date" name="zeitraum_start" id="edit_zeitraum_start" class="form-control" required>
+
+            <label>Enddatum:</label>
+            <input type="date" name="zeitraum_ende" id="edit_zeitraum_ende" class="form-control" required>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/admin_abordnung.js' %}"></script>
+{% endblock %}

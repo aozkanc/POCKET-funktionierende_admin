@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="container">
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <h2>👥 Projekt-Mitarbeiter-Zuordnung</h2>
+
+    <!-- ➕ Ekle Butonu -->
+    <button class="btn btn-primary mb-3" onclick="openZuordnungModal()">➕ Zuordnung hinzufügen</button>
+
+    <form method="get" class="form-inline mb-3">
+        <label for="projekt_filter" class="me-2">🔍 Projekt filtern:</label>
+        <select name="projekt_id" id="projekt_filter" class="form-control" onchange="this.form.submit()">
+            <option value="">-- Alle Projekte --</option>
+            {% for projekt in projekte %}
+                <option value="{{ projekt.id }}" {% if projekt.id|stringformat:"s" == request.GET.projekt_id %}selected{% endif %}>
+                    {{ projekt.projektname }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Projekt</th>
+                <th>Mitarbeiter</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for eintrag in zuordnungen %}
+            <tr>
+                <td>{{ eintrag.projekt.projektname }}</td>
+                <td>{{ eintrag.mitarbeiter.vorname }} {{ eintrag.mitarbeiter.nachname }}</td>
+                <td>
+                    <a href="{% url 'admin_projektmitarbeiter_delete' eintrag.id %}" onclick="return confirm('❗Zuordnung wirklich löschen?')">🗑️ Löschen</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ➕ Modal - Zuordnung hinzufügen -->
+<div id="zuordnungModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeZuordnungModal()">&times;</span>
+        <h2>Neue Zuordnung erstellen</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <label>Projekt:</label>
+            <select name="projekt_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for projekt in projekte %}
+                <option value="{{ projekt.id }}">{{ projekt.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for mitarbeiter in mitarbeiter %}
+                <option value="{{ mitarbeiter.id }}">{{ mitarbeiter.vorname }} {{ mitarbeiter.nachname }}</option>
+                {% endfor %}
+            </select>
+
+            <br>
+            <button type="submit" class="btn btn-success">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<!-- JS dosyası -->
+<script>
+    function openZuordnungModal() {
+        document.getElementById("zuordnungModal").style.display = "block";
+    }
+    function closeZuordnungModal() {
+        document.getElementById("zuordnungModal").style.display = "none";
+    }
+    window.onclick = function(event) {
+        const modal = document.getElementById("zuordnungModal");
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    };
+
+    // Modal kapat & form temizle işlemi - sadece başarı veya uyarı mesajı varsa
+    document.addEventListener("DOMContentLoaded", function () {
+        const messageBox = document.querySelector(".alert");
+        if (messageBox) {
+            // Modal'ı kapat
+            document.getElementById("zuordnungModal").style.display = "none";
+
+            // Form alanlarını temizle
+            const form = document.querySelector("#zuordnungModal form");
+            if (form) form.reset();
+        }
+    });    
+</script>
+{% endblock %}

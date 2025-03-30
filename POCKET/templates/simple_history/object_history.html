@@ -1,0 +1,36 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+    <h1>Änderungsverlauf für {{ object }}</h1>
+    
+    {% if action_list %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Benutzer</th>
+                    <th>Änderungen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in action_list %}
+                    <tr>
+                        <td>{{ action.history_date }}</td>
+                        <td>{{ action.history_user }}</td>
+                        <td>
+                            <ul>
+                                {% for change in action.get_change_reason %}
+                                    <li>{{ change }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine Änderungen gefunden.</p>
+    {% endif %}
+    
+    <p><a href="../">Zurück</a></p>
+{% endblock %}

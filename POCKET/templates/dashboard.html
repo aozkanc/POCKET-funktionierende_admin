@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mt-4 mb-3 text-center">Willkommen, {{ user.username }}</h2>
+
+    <div class="text-center">
+        {% if user.groups.all.0.name == "Manager" %}
+            <a href="{% url 'manager' %}" class="btn btn-primary">Manager Dashboard</a>
+        {% elif user.groups.all.0.name == "Mitarbeiter" %}
+            <a href="{% url 'mitarbeiter' %}" class="btn btn-success">Mitarbeiter Dashboard</a>
+        {% else %}
+            <p class="text-danger">Du hast keine gültige Rolle.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

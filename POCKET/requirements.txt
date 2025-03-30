@@ -1,0 +1,8 @@
+Django
+djangorestframework
+mysqlclient
+gunicorn
+Pillow
+django-simple-history
+
+
