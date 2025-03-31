@@ -70,6 +70,32 @@ class Projekt(models.Model):
         return self.projektname
 
 
+class Einnahme(models.Model):
+    STATUS_CHOICES = [
+        ('-', 'Bitte wählen'),
+        ('geplant', 'Geplant'),
+        ('offen', 'Offen'),
+        ('verrechnet', 'Verrechnet'),
+    ]
+
+    projekt = models.ForeignKey(Projekt, on_delete=models.CASCADE)
+    betrag = models.DecimalField(max_digits=10, decimal_places=2)
+    zahlungseingang = models.DateField(null=True, blank=True)
+    zahlungsart = models.CharField(max_length=50)
+    rechnungsnummer = models.CharField(max_length=50, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='-')
+    erstellt_von = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='erstellt_einnahmen')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Einnahmen"
+
+    def __str__(self):
+        return f"{self.projekt.projektname} - {self.betrag} €"
+
+
 class Abrechnung(models.Model):
     RECHNUNG_STATUS_CHOICES = [
         ('-', 'Bitte wählen'),
@@ -107,7 +133,7 @@ class Reisebericht(models.Model):
     ]
 
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete=models.CASCADE)
-    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE, null=True, blank=True)
+    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE)
     datum = models.DateField()
     zielort = models.CharField(max_length=100)
     zweck = models.TextField()
@@ -133,7 +159,7 @@ class Schulungskosten(models.Model):
     ]
 
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete=models.CASCADE)
-    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE, null=True, blank=True)
+    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE)
     schulungstyp = models.CharField(max_length=100)
     datum_start = models.DateField()
     datum_ende = models.DateField()

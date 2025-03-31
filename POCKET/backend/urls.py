@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import login_view, manager_dashboard_view, mitarbeiter_dashboard_view, custom_logout_view
-from core.views import admin_dashboard_view, export_finanzuebersicht, admin_projekte_view, admin_projekt_delete, export_projekte, admin_mitarbeiter_view, admin_mitarbeiter_delete, export_mitarbeiter, admin_abordnung_view, admin_abordnung_delete, export_abordnung, admin_reisebericht_view, admin_reisebericht_delete, export_reisebericht, admin_schulungskosten_view, admin_schulung_delete, export_schulungskosten, admin_abrechnung_view, admin_abrechnung_delete, export_abrechnung
+from core.views import admin_dashboard_view, export_finanzuebersicht, admin_projekte_view, admin_projekt_delete, export_projekte, admin_einnahmen_view, admin_einnahme_delete, export_einnahmen, admin_mitarbeiter_view, admin_mitarbeiter_delete, export_mitarbeiter, admin_abordnung_view, admin_abordnung_delete, export_abordnung, admin_reisebericht_view, admin_reisebericht_delete, export_reisebericht, admin_schulungskosten_view, admin_schulung_delete, export_schulungskosten, admin_abrechnung_view, admin_abrechnung_delete, export_abrechnung
 from django.contrib.auth.views import LogoutView
 from django.shortcuts import redirect
 
@@ -16,6 +16,9 @@ urlpatterns = [
     path('admin-projekte/', admin_projekte_view, name="admin_projekte"),
     path('admin-projekte/delete/<int:id>/', admin_projekt_delete, name="admin_projekt_delete"),
     path("export-projekte/", export_projekte, name="export_projekte"),
+    path("admin-einnahmen/", admin_einnahmen_view, name="admin_einnahmen"),
+    path("admin-einnahme-delete/<int:id>/", admin_einnahme_delete, name="admin_einnahme_delete"),
+    path("admin-einnahmen-export/", export_einnahmen, name="export_einnahmen"),
     path('admin-mitarbeiter/', admin_mitarbeiter_view, name="admin_mitarbeiter"),
     path('admin-mitarbeiter/delete/<int:id>/', admin_mitarbeiter_delete, name='admin_mitarbeiter_delete'),
     path("export-mitarbeiter/", export_mitarbeiter, name="export_mitarbeiter"),

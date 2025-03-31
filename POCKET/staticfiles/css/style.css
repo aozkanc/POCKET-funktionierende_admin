@@ -230,3 +230,53 @@ body {
     margin: 0 auto !important;
 }
 
+
+
+/* Login Box genişliği */
+.login-box {
+    width: 350px;  /* Genişliği belirledim */
+    margin: 0 auto;  /* Ortalamak için */
+    padding: 20px;  /* İç boşlukları arttırdım */
+    border: 1px solid #7e90b7;  /* Kutu için kenarlık */
+    border-radius: 8px;  /* Yuvarlak köşe */
+    background-color: #fff;  /* Beyaz arka plan */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  /* Hafif gölge */
+}
+
+/* Küçültülmüş input ve buttonlar */
+.custom-input {
+    font-size: 14px;
+    padding: 8px 12px;  /* İç padding */
+    height: 36px;  /* Yüksekliği biraz daraltıyorum */
+    width: 80%;  /* Input genişliği %80 */
+    margin-bottom: 12px;  /* Alt boşluk */
+    border: 1px solid #ccc;  /* Kenarlık rengi */
+    border-radius: 4px;  /* Yuvarlak köşe */
+}
+
+/* Buton */
+.custom-btn {
+    font-size: 14px;
+    padding: 10px;  /* Butonun iç boşlukları */
+    width: 80%;  /* Buton genişliği %80 */
+    height: 40px;  /* Buton yüksekliği */
+    border-radius: 4px;  /* Buton köşe yuvarlama */
+    background-color: #3f63b1;  /* Buton rengi */
+    color: white;  /* Buton yazı rengi */
+    border: none;  /* Buton kenarlık kaldırıldı */
+    transition: background-color 0.3s;  /* Hover efekti */
+}
+
+.custom-btn:hover {
+    background-color: #2563eb;  /* Hover rengi */
+}
+
+/* Sayfa Merkezi hizalama */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+}
+
+

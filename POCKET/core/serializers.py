@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Mitarbeiter, Projekt, Abrechnung, Reisebericht, Schulungskosten, Abordnung, ProjektMitarbeiter
+from .models import Mitarbeiter, Projekt, Abrechnung, Reisebericht, Schulungskosten, Abordnung, ProjektMitarbeiter, Einnahme
 
 class MitarbeiterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,6 +9,11 @@ class MitarbeiterSerializer(serializers.ModelSerializer):
 class ProjektSerializer(serializers.ModelSerializer):
     class Meta:
         model = Projekt
+        fields = '__all__'
+
+class EinnahmeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Einnahme
         fields = '__all__'
 
 class AbrechnungSerializer(serializers.ModelSerializer):

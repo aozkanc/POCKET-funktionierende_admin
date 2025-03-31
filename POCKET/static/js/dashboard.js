@@ -36,29 +36,26 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Grafik 2: Projekt vs Allgemein
-    const ctx2 = document.getElementById('kostenProjektAllgemeinChart');
-    if (ctx2) {
-        const p = parseFloat(ctx2.dataset.projekt) || 0;
-        const g = parseFloat(ctx2.dataset.allgemein) || 0;
+    // 💰 Einnahmen vs Kosten Chart
+    const einnahmeCanvas = document.getElementById("einnahmeVsKostenChart");
+    if (einnahmeCanvas) {
+        const einnahmen = parseFloat(einnahmeCanvas.dataset.einnahmen) || 0;
+        const kosten = parseFloat(einnahmeCanvas.dataset.kosten) || 0;
 
-        new Chart(ctx2, {
-            type: 'doughnut',
+        new Chart(einnahmeCanvas, {
+            type: "doughnut",
             data: {
-                labels: ['Projektgebunden', 'Allgemein'],
+                labels: ["Einnahmen", "Kosten"],
                 datasets: [{
-                    data: [p, g],
-                    backgroundColor: ['#3f63b1', '#ffc107'],
-                    borderColor: '#fff',
-                    borderWidth: 2
+                    data: [einnahmen, kosten],
+                    backgroundColor: ["#22c55e", "#ef4444"]
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
                     legend: {
-                        position: 'bottom',
-                        labels: { color: '#333' }
+                        position: "bottom"
                     },
                     tooltip: {
                         callbacks: {

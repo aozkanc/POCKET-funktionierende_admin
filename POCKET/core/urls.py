@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from .views import profil_view
 from .views import (
     MitarbeiterViewSet, ProjektViewSet, AbrechnungViewSet, ReiseberichtViewSet,
-    SchulungskostenViewSet, AbordnungViewSet
+    SchulungskostenViewSet, AbordnungViewSet, EinnahmeViewSet
 )
 
 router = DefaultRouter()
@@ -15,6 +15,7 @@ router.register(r'abrechnung', AbrechnungViewSet)
 router.register(r'reisebericht', ReiseberichtViewSet)
 router.register(r'schulungskosten', SchulungskostenViewSet)
 router.register(r'abordnung', AbordnungViewSet)
+router.register(r'einnahmen', EinnahmeViewSet)
 
 
 urlpatterns = [

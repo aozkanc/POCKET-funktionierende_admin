@@ -71,4 +71,37 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+    // 💰 Einnahmen vs Kosten Chart
+    const einnahmeCanvas = document.getElementById("einnahmeVsKostenChart");
+    if (einnahmeCanvas) {
+        const einnahmen = parseFloat(einnahmeCanvas.dataset.einnahmen) || 0;
+        const kosten = parseFloat(einnahmeCanvas.dataset.kosten) || 0;
+
+        new Chart(einnahmeCanvas, {
+            type: "doughnut",
+            data: {
+                labels: ["Einnahmen", "Kosten"],
+                datasets: [{
+                    data: [einnahmen, kosten],
+                    backgroundColor: ["#22c55e", "#ef4444"]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: "bottom"
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return `${context.label}: ${context.raw.toFixed(2)} €`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 });

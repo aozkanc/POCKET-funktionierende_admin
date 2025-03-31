@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
 from rest_framework import viewsets
-from .models import Mitarbeiter, Projekt, Abrechnung, Reisebericht, Schulungskosten, Abordnung, ProjektMitarbeiter
-from .serializers import MitarbeiterSerializer, ProjektSerializer, AbrechnungSerializer, ReiseberichtSerializer, SchulungskostenSerializer, AbordnungSerializer
+from .models import Mitarbeiter, Projekt, Abrechnung, Reisebericht, Schulungskosten, Abordnung, ProjektMitarbeiter, Einnahme
+from .serializers import MitarbeiterSerializer, ProjektSerializer, AbrechnungSerializer, ReiseberichtSerializer, SchulungskostenSerializer, AbordnungSerializer, EinnahmeSerializer
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.utils.decorators import method_decorator
@@ -30,6 +30,10 @@ class MitarbeiterViewSet(viewsets.ModelViewSet):
 class ProjektViewSet(viewsets.ModelViewSet):
     queryset = Projekt.objects.all()
     serializer_class = ProjektSerializer
+
+class EinnahmeViewSet(viewsets.ModelViewSet):
+    queryset = Einnahme.objects.all()
+    serializer_class = EinnahmeSerializer
 
 class AbrechnungViewSet(viewsets.ModelViewSet):
     queryset = Abrechnung.objects.all()
@@ -75,42 +79,46 @@ from django.db.models import Sum, Q
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def admin_dashboard_view(request):
-    # 🔢 Genel toplamlar
+    # 🔢 Genel toplam sayılar (sadece projeye bağlı olanlar)
     total_projekte = Projekt.objects.count()
     total_mitarbeiter = Mitarbeiter.objects.count()
     total_abordnungen = Abordnung.objects.count()
-    total_reisen = Reisebericht.objects.count()
-    total_schulungen = Schulungskosten.objects.count()
-    total_abrechnungen = Abrechnung.objects.count()
+    total_reisen = Reisebericht.objects.filter(projekt__isnull=False).count()
+    total_schulungen = Schulungskosten.objects.filter(projekt__isnull=False).count()
+    total_abrechnungen = Abrechnung.objects.filter(projekt__isnull=False).count()
 
-    # 💸 Maliyet hesapları
-    total_abrechnung = Abrechnung.objects.aggregate(s=Sum("brutto_summe"))["s"] or 0
-    total_reise = Reisebericht.objects.aggregate(s=Sum("kosten_fahrt"))["s"] or 0
-    total_hotel = Reisebericht.objects.aggregate(s=Sum("kosten_übernachtung"))["s"] or 0
-    total_schulung = Schulungskosten.objects.aggregate(s=Sum("kosten"))["s"] or 0
+    # 💸 Gider hesapları (SADECE proje bağlantılı veriler)
+    total_abrechnung = Abrechnung.objects.filter(projekt__isnull=False).aggregate(s=Sum("brutto_summe"))["s"] or 0
+    total_reise = Reisebericht.objects.filter(projekt__isnull=False).aggregate(s=Sum("kosten_fahrt"))["s"] or 0
+    total_hotel = Reisebericht.objects.filter(projekt__isnull=False).aggregate(s=Sum("kosten_übernachtung"))["s"] or 0
+    total_schulung = Schulungskosten.objects.filter(projekt__isnull=False).aggregate(s=Sum("kosten"))["s"] or 0
 
     total_kosten = total_abrechnung + total_reise + total_hotel + total_schulung
 
-    projekt_kosten = (
-        (Abrechnung.objects.filter(projekt__isnull=False).aggregate(s=Sum("brutto_summe"))["s"] or 0)
-        + (Reisebericht.objects.filter(projekt__isnull=False).aggregate(s=Sum("kosten_fahrt"))["s"] or 0)
-        + (Reisebericht.objects.filter(projekt__isnull=False).aggregate(s=Sum("kosten_übernachtung"))["s"] or 0)
-    )
-    allgemeine_kosten = total_kosten - projekt_kosten
+    # 💰 Gelir (zaten proje bağlı)
+    total_einnahmen = Einnahme.objects.aggregate(s=Sum("betrag"))["s"] or 0
+    total_einnahmen_count = Einnahme.objects.count()
 
-    # 🎨 Grafik 1: Kategori bazlı dağılım (Doughnut)
+    # 💹 Kar
+    nettogewinn = total_einnahmen - total_kosten
+
+    # 📊 Grafik: Einnahmen vs Kosten
+    einnahme_vs_kosten_data = {
+        "Einnahmen": float(total_einnahmen),
+        "Kosten": float(total_kosten),
+    }
+
+    # 📊 Grafik: Gider Kategorileri
     category_data = {
         "Abrechnung": float(total_abrechnung),
         "Reise": float(total_reise + total_hotel),
         "Schulung": float(total_schulung),
     }
 
-    # 🎨 Grafik 2: Projekt vs Allgemein (Doughnut)
-    projekt_vs_allgemein_data = {
-        "Projektgebunden": float(projekt_kosten),
-        "Allgemein": float(allgemeine_kosten),
-    }
+    # 🔁 Artık "allgemeine_kosten" yok!
+    # "projekt_vs_allgemein_data" gibi grafiklere gerek yok
 
+    # 📦 Template'e gönderilecek context
     context = {
         "total_projekte": total_projekte,
         "total_mitarbeiter": total_mitarbeiter,
@@ -118,11 +126,12 @@ def admin_dashboard_view(request):
         "total_reisen": total_reisen,
         "total_schulungen": total_schulungen,
         "total_abrechnungen": total_abrechnungen,
+        "total_einnahmen_count": total_einnahmen_count,
+        "total_einnahmen": total_einnahmen,
         "total_kosten": total_kosten,
-        "projektgebundene_kosten": projekt_kosten,
-        "allgemeine_kosten": allgemeine_kosten,
+        "nettogewinn": nettogewinn,
+        "einnahme_vs_kosten_data": einnahme_vs_kosten_data,
         "category_data": category_data,
-        "projekt_vs_allgemein_data": projekt_vs_allgemein_data,
     }
 
     return render(request, "admin_pages/admin_dashboard.html", context)
@@ -137,23 +146,35 @@ def export_finanzuebersicht(request):
     writer = csv.writer(response)
     writer.writerow(['Kategorie', 'Betrag (€)'])
 
+    # 🔢 Verileri getir
     abrechnung = Abrechnung.objects.all()
     reisen = Reisebericht.objects.all()
     schulungen = Schulungskosten.objects.all()
+    einnahmen_qs = Einnahme.objects.all()
 
+    # 💸 Giderler
     total_abrechnung = abrechnung.aggregate(s=Sum('brutto_summe'))['s'] or 0
     total_reise = reisen.aggregate(s=Sum('kosten_fahrt'))['s'] or 0
     total_hotel = reisen.aggregate(s=Sum('kosten_übernachtung'))['s'] or 0
     total_schulung = schulungen.aggregate(s=Sum('kosten'))['s'] or 0
+    total_kosten = total_abrechnung + total_reise + total_hotel + total_schulung
 
+    # 💰 Gelir
+    total_einnahmen = einnahmen_qs.aggregate(s=Sum('betrag'))['s'] or 0
+
+    # 📈 Net kar
+    nettogewinn = total_einnahmen - total_kosten
+
+    # 📤 CSV satırları
     writer.writerow(['Abrechnung', f"{total_abrechnung:.2f}"])
     writer.writerow(['Reise (Fahrt + Hotel)', f"{(total_reise + total_hotel):.2f}"])
     writer.writerow(['Schulung', f"{total_schulung:.2f}"])
-
-    total = total_abrechnung + total_reise + total_hotel + total_schulung
-    writer.writerow(['Gesamtkosten', f"{total:.2f}"])
+    writer.writerow(['Einnahmen', f"{total_einnahmen:.2f}"])
+    writer.writerow(['Gesamtkosten', f"{total_kosten:.2f}"])
+    writer.writerow(['Nettogewinn', f"{nettogewinn:.2f}"])
 
     return response
+
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -286,6 +307,109 @@ def export_projekte(request):
         ])
 
     return response
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def admin_einnahmen_view(request):
+    einnahmen = Einnahme.objects.select_related("projekt").all()
+    projekte = Projekt.objects.all()
+
+    # 🔍 Filtreleme
+    projekt_id = request.GET.get("projekt_id")
+    start = request.GET.get("start")
+    end = request.GET.get("end")
+    status = request.GET.get("status")
+
+    if projekt_id:
+        einnahmen = einnahmen.filter(projekt_id=projekt_id)
+    if start:
+        einnahmen = einnahmen.filter(zahlungseingang__gte=start)
+    if end:
+        einnahmen = einnahmen.filter(zahlungseingang__lte=end)
+    if status:
+        einnahmen = einnahmen.filter(status=status)
+
+    # 📄 Sayfalama
+    paginator = Paginator(einnahmen.order_by("-zahlungseingang"), 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # ➕ / ✏️ Ekleme veya Güncelleme
+    if request.method == "POST":
+        data = request.POST
+        edit_id = data.get("edit_id")
+
+        einnahme = Einnahme.objects.get(id=edit_id) if edit_id else Einnahme()
+        einnahme.projekt_id = data.get("projekt_id")
+        einnahme.betrag = data.get("betrag")
+        einnahme.zahlungseingang = data.get("zahlungseingang") or None
+        einnahme.zahlungsart = data.get("zahlungsart")
+        einnahme.rechnungsnummer = data.get("rechnungsnummer")
+        einnahme.status = data.get("status")
+        einnahme.erstellt_von = request.user
+
+        einnahme.save()
+
+        if edit_id:
+            messages.success(request, "✅ Einnahme wurde aktualisiert.")
+        else:
+            messages.success(request, "✅ Einnahme wurde erfolgreich gespeichert.")
+
+        return redirect("admin_einnahmen")
+
+    return render(request, "admin_pages/admin_einnahmen.html", {
+        "einnahmen": page_obj,
+        "projekte": projekte,
+    })
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def admin_einnahme_delete(request, id):
+    einnahme = get_object_or_404(Einnahme, id=id)
+    einnahme.delete()
+    messages.success(request, "🗑️ Einnahme wurde gelöscht.")
+    return redirect("admin_einnahmen")
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def export_einnahmen(request):
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="einnahmen.csv"'
+    response.write('\ufeff')  # UTF-8 BOM
+
+    writer = csv.writer(response)
+    writer.writerow(['Projekt', 'Betrag (€)', 'Zahlungseingang', 'Zahlungsart', 'Rechnungsnummer', 'Status'])
+
+    einnahmen = Einnahme.objects.select_related("projekt").all()
+
+    # 🔍 Filtre uygulama
+    projekt_id = request.GET.get("projekt_id")
+    start = request.GET.get("start")
+    end = request.GET.get("end")
+    status = request.GET.get("status")
+
+    if projekt_id:
+        einnahmen = einnahmen.filter(projekt_id=projekt_id)
+    if start:
+        einnahmen = einnahmen.filter(zahlungseingang__gte=start)
+    if end:
+        einnahmen = einnahmen.filter(zahlungseingang__lte=end)
+    if status:
+        einnahmen = einnahmen.filter(status=status)
+
+    for e in einnahmen:
+        writer.writerow([
+            e.projekt.projektname,
+            f"{e.betrag:.2f}",
+            e.zahlungseingang.strftime("%d.%m.%Y") if e.zahlungseingang else "-",
+            e.zahlungsart,
+            e.rechnungsnummer or "-",
+            e.status,
+        ])
+
+    return response
+
 
 
 @login_required
@@ -965,21 +1089,48 @@ def admin_reports_view(request):
 @user_passes_test(lambda u: u.groups.filter(name="Manager").exists())
 def manager_dashboard_view(request):
     manager = request.user
+    
+    # Kendi projelerine ait verileri alıyoruz
+    manager_projects = Projekt.objects.filter(created_by=manager)
 
-    # 🔹 Sadece bu manager tarafından oluşturulan projeler
-    eigene_projekte = Projekt.objects.filter(erstellt_von=manager)
+    # Gelir ve gider verilerini alıyoruz
+    total_einnahmen = Einnahme.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('betrag'))['s'] or 0
+    total_kosten = Abrechnung.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('brutto_summe'))['s'] or 0
+    total_reise = Reisebericht.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten_fahrt'))['s'] or 0
+    total_hotel = Reisebericht.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten_übernachtung'))['s'] or 0
+    total_schulung = Schulungskosten.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten'))['s'] or 0
 
-    # 🔸 Proje sayısı
-    total_projekte = eigene_projekte.count()
+    # Maliyet kategorilerini hazırlıyoruz
+    category_data = {
+        "Abrechnung": float(total_kosten),
+        "Reise": float(total_reise + total_hotel),
+        "Schulung": float(total_schulung),
+    }
 
-    # 🔸 Bu manager'ın oluşturduğu projelere atanan toplam çalışan sayısı
-    total_mitarbeiter = ProjektMitarbeiter.objects.filter(projekt__in=eigene_projekte).values("mitarbeiter").distinct().count()
+    # Kar/Zarar hesaplaması
+    nettogewinn = total_einnahmen - total_kosten
 
-    return render(request, "manager_pages/manager_dashboard.html", {
-        "total_projekte": total_projekte,
-        "total_mitarbeiter": total_mitarbeiter,
-        "projekte": eigene_projekte,
-    })
+    # Grafik için karşılaştırma verileri
+    einnahme_vs_kosten_data = {
+        "Einnahmen": float(total_einnahmen),
+        "Kosten": float(total_kosten),
+    }
+
+    # Grafik verisi hazırlığı (projeye özel)
+    projekt_kosten = total_reise + total_hotel + total_schulung  # Projeye bağlı giderler
+    allgemeine_kosten = total_kosten - projekt_kosten
+
+    context = {
+        "total_einnahmen": total_einnahmen,
+        "total_kosten": total_kosten,
+        "nettogewinn": nettogewinn,
+        "category_data": category_data,
+        "einnahme_vs_kosten_data": einnahme_vs_kosten_data,
+        "projekt_kosten": projekt_kosten,
+        "allgemeine_kosten": allgemeine_kosten,
+    }
+
+    return render(request, "manager_pages/manager_dashboard.html", context)
 
 
 @login_required

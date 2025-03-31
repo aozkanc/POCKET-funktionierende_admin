@@ -1,6 +1,6 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
-from .models import BenutzerProfil, Abrechnung, Mitarbeiter, Projekt, Reisebericht, Schulungskosten, Abordnung
+from .models import BenutzerProfil, Abrechnung, Mitarbeiter, Projekt, Reisebericht, Schulungskosten, Abordnung, Einnahme
 
 # 📌 BenutzerProfil için geçmişi admin panelinde göster
 @admin.register(BenutzerProfil)
@@ -27,6 +27,13 @@ class AbrechnungAdmin(admin.ModelAdmin):
     list_display = ('mitarbeiter', 'projekt', 'monat', 'stunden', 'stundensatz', 'netto_summe', 'brutto_summe', 'rechnung_status', 'zahlungseingang')
     search_fields = ('mitarbeiter__vorname', 'mitarbeiter__nachname', 'projekt__projektname')
     list_filter = ('projekt', 'mitarbeiter', 'rechnung_status', 'monat')
+
+@admin.register(Einnahme)
+class EinnahmeAdmin(admin.ModelAdmin):
+    list_display = ('projekt', 'betrag', 'zahlungseingang', 'zahlungsart', 'rechnungsnummer', 'status')
+    list_filter = ('projekt', 'zahlungsart', 'status', 'zahlungseingang')
+    search_fields = ('projekt__projektname', 'rechnungsnummer')
+    date_hierarchy = 'zahlungseingang'
 
 @admin.register(Reisebericht)
 class ReiseberichtAdmin(admin.ModelAdmin):

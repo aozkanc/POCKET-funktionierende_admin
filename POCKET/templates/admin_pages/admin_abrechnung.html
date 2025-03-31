@@ -121,7 +121,7 @@
 
                 <input type="month" name="monat" class="form-control" value="{{ request.GET.monat }}">
                 <select name="status" class="form-control">
-                    <option value="">💳 Alle Stati</option>
+                    <option value="">💳 Status wählen</option>
                     <option value="offen" {% if request.GET.status == 'offen' %}selected{% endif %}>Offen</option>
                     <option value="bezahlt" {% if request.GET.status == 'bezahlt' %}selected{% endif %}>Bezahlt</option>
                 </select>
@@ -153,9 +153,9 @@
         {% endfor %}
       </select>
 
-      <label>Projekt (optional):</label>
-      <select name="projekt_id" class="form-control">
-        <option value="">-</option>
+      <label>Projekt:</label>
+      <select name="projekt_id" class="form-control" required>
+          <option value="">Bitte wählen</option>
         {% for p in projekte %}
           <option value="{{ p.id }}">{{ p.projektname }}</option>
         {% endfor %}
@@ -215,9 +215,9 @@
         {% endfor %}
       </select>
 
-      <label>Projekt (optional):</label>
-      <select name="projekt_id" id="edit_projekt_id" class="form-control">
-        <option value="">-</option>
+      <label>Projekt:</label>
+      <select name="projekt_id" id="edit_projekt_id" class="form-control" required>
+          <option value="">Bitte wählen</option>
         {% for p in projekte %}
           <option value="{{ p.id }}">{{ p.projektname }}</option>
         {% endfor %}

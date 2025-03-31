@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2 class="page-title">💰 Einnahmen verwalten</h2>
+
+    <div class="d-flex flex-wrap gap-3">
+
+        <!-- 📋 Liste + Arama -->
+        <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addEinnahmeModal')">
+                    ➕ Neue Einnahme
+                </button>
+                <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
+                    <input type="text" id="einnahmeSearch" class="form-control ab-search" placeholder="🔍 Projekt oder Zahlungsart suchen...">
+                    <a href="{% url 'export_einnahmen' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp export-btn">
+                        <span class="export-symbol">📤</span> Exportieren
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered ab-tabelle" id="einnahmeTable">
+                    <thead>
+                        <tr>
+                            <th>Projekt</th>
+                            <th>Betrag (€)</th>
+                            <th>Zahlungseingang</th>
+                            <th>Zahlungsart</th>
+                            <th>Rechnungsnr.</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for einnahme in einnahmen %}
+                        <tr>
+                            <td>{{ einnahme.projekt.projektname }}</td>
+                            <td>{{ einnahme.betrag }}</td>
+                            <td>{{ einnahme.zahlungseingang|date:"d.m.Y" }}</td>
+                            <td>{{ einnahme.zahlungsart }}</td>
+                            <td>{{ einnahme.rechnungsnummer }}</td>
+                            <td>{{ einnahme.status }}</td>
+                            <td class="ab-actions">
+                                <a href="#" class="edit-einnahme-btn"
+                                   data-id="{{ einnahme.id }}"
+                                   data-projekt-id="{{ einnahme.projekt.id }}"
+                                   data-betrag="{{ einnahme.betrag }}"
+                                   data-zahlungseingang="{{ einnahme.zahlungseingang|date:'Y-m-d' }}"
+                                   data-zahlungsart="{{ einnahme.zahlungsart|escapejs }}"
+                                   data-rechnungsnummer="{{ einnahme.rechnungsnummer|default_if_none:''|escapejs }}"
+                                   data-status="{{ einnahme.status }}">
+                                   ✏️ Bearbeiten
+                                </a>
+                                |
+                                <a href="{% url 'admin_einnahme_delete' einnahme.id %}" onclick="return confirm('❗Wirklich löschen?')">🗑️ Löschen</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Keine Einnahmen gefunden.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 📄 Pagination -->
+            <div class="pagination mt-3">
+                <span class="step-links">
+                    {% if einnahmen.has_previous %}
+                        <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; erste</a>
+                        <a href="?page={{ einnahmen.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">zurück</a>
+                    {% endif %}
+
+                    <span class="current">
+                        Seite {{ einnahmen.number }} von {{ einnahmen.paginator.num_pages }}.
+                    </span>
+
+                    {% if einnahmen.has_next %}
+                        <a href="?page={{ einnahmen.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">weiter</a>
+                        <a href="?page={{ einnahmen.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">letzte &raquo;</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- 🎯 Filter Panel -->
+        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px;">
+            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
+            <form method="get" class="d-grid gap-2">
+                <select name="projekt_id" class="form-control">
+                    <option value="">📁 Alle Projekte</option>
+                    {% for p in projekte %}
+                        <option value="{{ p.id }}" {% if request.GET.projekt_id == p.id|stringformat:"s" %}selected{% endif %}>{{ p.projektname }}</option>
+                    {% endfor %}
+                </select>
+
+                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
+                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
+
+                <select name="status" class="form-control">
+                    <option value="">📌 Status wählen</option>
+                    <option value="geplant" {% if request.GET.status == 'geplant' %}selected{% endif %}>Geplant</option>
+                    <option value="offen" {% if request.GET.status == 'offen' %}selected{% endif %}>Offen</option>
+                    <option value="verrechnet" {% if request.GET.status == 'verrechnet' %}selected{% endif %}>Verrechnet</option>
+                </select>
+
+                <button type="submit" class="btn btn-primary mt-2">Filtern</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ➕ Modal - Einnahme hinzufügen -->
+<div id="addEinnahmeModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('addEinnahmeModal', false)">×</button>
+        <h2>Neue Einnahme</h2>
+        <form method="POST" action="{% url 'admin_einnahmen' %}">
+            {% csrf_token %}
+            <label>Projekt:</label>
+            <select name="projekt_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for p in projekte %}
+                    <option value="{{ p.id }}">{{ p.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Betrag (€):</label>
+            <input type="number" name="betrag" step="0.01" class="form-control" required>
+
+            <label>Zahlungseingang:</label>
+            <input type="date" name="zahlungseingang" class="form-control">
+
+            <label>Zahlungsart:</label>
+            <input type="text" name="zahlungsart" class="form-control">
+
+            <label>Rechnungsnr.:</label>
+            <input type="text" name="rechnungsnummer" class="form-control">
+
+            <label>Status:</label>
+            <select name="status" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="geplant">Geplant</option>
+                <option value="offen">Offen</option>
+                <option value="verrechnet">Verrechnet</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✏️ Modal - Einnahme bearbeiten -->
+<div id="editEinnahmeModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editEinnahmeModal', false)">×</button>
+        <h2>Einnahme bearbeiten</h2>
+        <form method="POST" action="{% url 'admin_einnahmen' %}">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+
+            <label>Projekt:</label>
+            <select name="projekt_id" id="edit_projekt_id" class="form-control" required>
+                <option value="">Bitte wählen</option>
+                {% for p in projekte %}
+                    <option value="{{ p.id }}">{{ p.projektname }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Betrag (€):</label>
+            <input type="number" name="betrag" id="edit_betrag" step="0.01" class="form-control" required>
+
+            <label>Zahlungseingang:</label>
+            <input type="date" name="zahlungseingang" id="edit_zahlungseingang" class="form-control">
+
+            <label>Zahlungsart:</label>
+            <input type="text" name="zahlungsart" id="edit_zahlungsart" class="form-control">
+
+            <label>Rechnungsnr.:</label>
+            <input type="text" name="rechnungsnummer" id="edit_rechnungsnummer" class="form-control">
+
+            <label>Status:</label>
+            <select name="status" id="edit_status" class="form-control" required>
+                <option value="-">Bitte wählen</option>
+                <option value="geplant">Geplant</option>
+                <option value="offen">Offen</option>
+                <option value="verrechnet">Verrechnet</option>
+            </select>
+
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/admin_einnahmen.js' %}"></script>
+{% endblock %}

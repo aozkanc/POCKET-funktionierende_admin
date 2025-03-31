@@ -90,7 +90,7 @@
                 <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
                 <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
                 <select name="status" class="form-control">
-                    <option value="">🔽Status wählen</option>
+                    <option value="">🔽 Status wählen</option>
                     <option value="geplant" {% if request.GET.status == 'geplant' %}selected{% endif %}>Geplant</option>
                     <option value="laufend" {% if request.GET.status == 'laufend' %}selected{% endif %}>Laufend</option>
                     <option value="abgeschlossen" {% if request.GET.status == 'abgeschlossen' %}selected{% endif %}>Abgeschlossen</option>
