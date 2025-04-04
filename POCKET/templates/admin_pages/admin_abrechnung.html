@@ -6,14 +6,53 @@
     <h2 class="page-title">💼 Abrechnungen verwalten</h2>
 
     <div class="d-flex flex-wrap gap-3">
-        <!-- 📋 Sol alan: Arama + Tablo -->
+        <!-- 📋 Sol: Liste ve Arama -->
         <div class="flex-grow-1">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addAbrechnungModal')">
                     <span class="plus-symbol">➕</span> Neue Abrechnung
                 </button>
                 <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
-                    <input type="text" id="abrechnungSearch" class="form-control ab-search" placeholder="🔍 Nach Monat, Mitarbeiter oder Projekt suchen...">
+                    <input type="text" id="abrechnungSearch" class="form-control ab-search" placeholder="🔍 Abrechnungen durchsuchen...">
+
+                    <!-- 📑 Dropdown Filter -->
+                    <div class="dropdown">
+                        <button class="btn ab-btn-custom ab-btn-exp dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            📑 Filter
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 ab-filter-dropdown" aria-labelledby="filterDropdown" style="min-width: 250px;">
+                            <form method="get" class="d-grid gap-2">
+                                <select name="mitarbeiter_id" class="form-control form-control-sm">
+                                    <option value="">👤 Alle Mitarbeiter</option>
+                                    {% for m in mitarbeiter %}
+                                        <option value="{{ m.id }}" {% if request.GET.mitarbeiter_id == m.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ m.vorname }} {{ m.nachname }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                                <select name="projekt_id" class="form-control form-control-sm">
+                                    <option value="">📁 Alle Projekte</option>
+                                    {% for p in projekte %}
+                                        <option value="{{ p.id }}" {% if request.GET.projekt_id == p.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ p.projektname }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                                <input type="month" name="monat" class="form-control form-control-sm" value="{{ request.GET.monat }}">
+
+                                <select name="status" class="form-control form-control-sm">
+                                    <option value="">💳 Status wählen</option>
+                                    <option value="offen" {% if request.GET.status == 'offen' %}selected{% endif %}>Offen</option>
+                                    <option value="bezahlt" {% if request.GET.status == 'bezahlt' %}selected{% endif %}>Bezahlt</option>
+                                </select>
+
+                                <button type="submit" class="btn ab-primary-btn">Filtern</button>
+                            </form>
+                        </div>
+                    </div>
+
                     <a href="{% url 'export_abrechnung' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp export-btn">
                         <span class="export-symbol">📤</span> Exportieren
                     </a>
@@ -22,9 +61,10 @@
 
             <!-- 📊 Tabelle -->
             <div class="table-responsive">
-                <table class="table table-bordered" id="abrechnungTable">
+                <table class="table table-bordered ab-tabelle" id="abrechnungTable">
                     <thead>
                         <tr>
+                            <th>Nr.</th>
                             <th onclick="sortAbrechnungTable(0)">Monat 🔽</th>
                             <th onclick="sortAbrechnungTable(1)">Mitarbeiter 🔽</th>
                             <th onclick="sortAbrechnungTable(2)">Projekt 🔽</th>
@@ -38,17 +78,12 @@
                         {% if abrechnungen %}
                             {% for eintrag in abrechnungen %}
                                 <tr>
+                                    <td>{{ forloop.counter }}</td>
                                     <td>{{ eintrag.monat }}</td>
                                     <td>{{ eintrag.mitarbeiter.vorname }} {{ eintrag.mitarbeiter.nachname }}</td>
-                                    <td>
-                                        {% if eintrag.projekt %}
-                                            {{ eintrag.projekt.projektname }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
+                                    <td>{% if eintrag.projekt %}{{ eintrag.projekt.projektname }}{% else %}-{% endif %}</td>
                                     <td>{{ eintrag.stunden }}</td>
-                                    <td>{{ eintrag.netto_summe }}</td>
+                                    <td class="text-end">{{ eintrag.netto_summe|floatformat:2 }}</td>
                                     <td>{{ eintrag.rechnung_status }}</td>
                                     <td class="ab-actions">
                                         <a href="#" class="edit-abrechnung-btn"
@@ -57,8 +92,6 @@
                                            data-mitarbeiter-id="{{ eintrag.mitarbeiter.id }}"
                                            {% if eintrag.projekt %}
                                                data-projekt-id="{{ eintrag.projekt.id }}"
-                                           {% else %}
-                                               data-projekt-id=""
                                            {% endif %}
                                            data-stunden="{{ eintrag.stunden }}"
                                            data-stundensatz="{{ eintrag.stundensatz }}"
@@ -75,24 +108,22 @@
                                 </tr>
                             {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted">🔍 Keine Abrechnungen gefunden.</td>
-                            </tr>
+                            <tr><td colspan="7" class="text-center text-muted">🔍 Keine Abrechnungen gefunden.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
-            <div class="pagination">
+
+            <!-- 📄 Pagination -->
+            <div class="pagination mt-3">
                 <span class="step-links">
                     {% if abrechnungen.has_previous %}
                         <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; erste</a>
                         <a href="?page={{ abrechnungen.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">zurück</a>
                     {% endif %}
-            
                     <span class="current">
                         Seite {{ abrechnungen.number }} von {{ abrechnungen.paginator.num_pages }}.
                     </span>
-            
                     {% if abrechnungen.has_next %}
                         <a href="?page={{ abrechnungen.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">weiter</a>
                         <a href="?page={{ abrechnungen.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">letzte &raquo;</a>
@@ -100,163 +131,107 @@
                 </span>
             </div>
         </div>
-
-        <!-- 🎯 Filtre paneli -->
-        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px; height: fit-content;">
-            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
-            <form method="get" class="d-grid gap-2">
-                <select name="mitarbeiter_id" class="form-control">
-                    <option value="">👤 Alle Mitarbeiter</option>
-                    {% for m in mitarbeiter %}
-                        <option value="{{ m.id }}" {% if request.GET.mitarbeiter_id == m.id|stringformat:"s" %}selected{% endif %}>{{ m.vorname }} {{ m.nachname }}</option>
-                    {% endfor %}
-                </select>
-
-                <select name="projekt_id" class="form-control">
-                    <option value="">📁 Alle Projekte</option>
-                    {% for p in projekte %}
-                        <option value="{{ p.id }}" {% if request.GET.projekt_id == p.id|stringformat:"s" %}selected{% endif %}>{{ p.projektname }}</option>
-                    {% endfor %}
-                </select>
-
-                <input type="month" name="monat" class="form-control" value="{{ request.GET.monat }}">
-                <select name="status" class="form-control">
-                    <option value="">💳 Status wählen</option>
-                    <option value="offen" {% if request.GET.status == 'offen' %}selected{% endif %}>Offen</option>
-                    <option value="bezahlt" {% if request.GET.status == 'bezahlt' %}selected{% endif %}>Bezahlt</option>
-                </select>
-
-                <button type="submit" class="btn btn-primary">Filtern</button>
-            </form>
-        </div>
     </div>
-
 </div>
 
-<!-- Modal'lar buraya gelecek -->
-<!-- ➕ Neue Abrechnung erfassen -->
+<!-- Modal: Abrechnung hinzufügen -->
 <div id="addAbrechnungModal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close" onclick="toggleModal('addAbrechnungModal', false)">×</button>
-    <h2>Neue Abrechnung erfassen</h2>
-    <form method="POST" action="{% url 'admin_abrechnung' %}">
-      {% csrf_token %}
-
-      <label>Monat:</label>
-      <input type="month" name="monat" class="form-control" required>
-
-      <label>Mitarbeiter:</label>
-      <select name="mitarbeiter_id" class="form-control" required>
-        <option value="">Bitte wählen</option>
-        {% for m in mitarbeiter %}
-          <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
-        {% endfor %}
-      </select>
-
-      <label>Projekt:</label>
-      <select name="projekt_id" class="form-control" required>
-          <option value="">Bitte wählen</option>
-        {% for p in projekte %}
-          <option value="{{ p.id }}">{{ p.projektname }}</option>
-        {% endfor %}
-      </select>
-
-      <label>Stunden:</label>
-      <input type="number" name="stunden" step="0.1" class="form-control" required>
-
-      <label>Stundensatz (€):</label>
-      <input type="number" name="stundensatz" step="0.01" class="form-control" required>
-
-      <label>Netto-Summe (€):</label>
-      <input type="number" name="netto_summe" step="0.01" class="form-control">
-
-      <label>Brutto-Summe (€):</label>
-      <input type="number" name="brutto_summe" step="0.01" class="form-control">
-
-      <label>Rechnungsstatus:</label>
-      <select name="rechnung_status" class="form-control">
-        <option value="">Bitte wählen</option>
-        <option value="offen">Offen</option>
-        <option value="bezahlt">Bezahlt</option>
-      </select>
-
-      <label>Zahlungseingang (optional):</label>
-      <input type="date" name="zahlungseingang" class="form-control">
-
-      <label>Leistungsnachweis (Dateiname oder Info):</label>
-      <input type="text" name="leistungsnachweis" class="form-control">
-
-      <label>Bemerkung:</label>
-      <textarea name="bemerkung" class="form-control" rows="3"></textarea>
-
-      <br>
-      <button type="submit" class="btn ab-primary-btn">Speichern</button>
-    </form>
-  </div>
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('addAbrechnungModal', false)">×</button>
+        <h2>Neue Abrechnung</h2>
+        <form method="POST" action="{% url 'admin_abrechnung' %}">
+            {% csrf_token %}
+            <label>Monat:</label>
+            <input type="month" name="monat" class="form-control" required>
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" class="form-control" required>
+                <option value=""> --- </option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+            <label>Projekt:</label>
+            <select name="projekt_id" class="form-control">
+                <option value=""> --- </option>
+                {% for projekt in projekte %}
+                    <option value="{{ projekt.id }}">{{ projekt.projektname }}</option>
+                {% endfor %}
+            </select>
+            <label>Stunden:</label>
+            <input type="number" name="stunden" step="0.1" class="form-control" required>
+            <label>Stundensatz (€):</label>
+            <input type="number" name="stundensatz" step="0.01" class="form-control" required>
+            <label>Netto-Summe (€):</label>
+            <input type="number" name="netto_summe" step="0.01" class="form-control">
+            <label>Brutto-Summe (€):</label>
+            <input type="number" name="brutto_summe" step="0.01" class="form-control">
+            <label>Status:</label>
+            <select name="rechnung_status" class="form-control">
+                <option value="">Bitte wählen</option>
+                <option value="offen">Offen</option>
+                <option value="bezahlt">Bezahlt</option>
+            </select>
+            <label>Zahlungseingang:</label>
+            <input type="date" name="zahlungseingang" class="form-control">
+            <label>Leistungsnachweis:</label>
+            <input type="text" name="leistungsnachweis" class="form-control">
+            <label>Bemerkung:</label>
+            <textarea name="bemerkung" class="form-control" rows="3"></textarea>
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Speichern</button>
+        </form>
+    </div>
 </div>
 
-<!-- ✏️ Abrechnung bearbeiten -->
+<!-- Modal: Abrechnung bearbeiten -->
 <div id="editAbrechnungModal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close" onclick="toggleModal('editAbrechnungModal', false)">×</button>
-    <h2>Abrechnung bearbeiten</h2>
-    <form method="POST" action="{% url 'admin_abrechnung' %}">
-      {% csrf_token %}
-      <input type="hidden" name="edit_id" id="edit_id">
-
-      <label>Monat:</label>
-      <input type="month" name="monat" id="edit_monat" class="form-control" required>
-
-      <label>Mitarbeiter:</label>
-      <select name="mitarbeiter_id" id="edit_mitarbeiter_id" class="form-control" required>
-        <option value="">Bitte wählen</option>
-        {% for m in mitarbeiter %}
-          <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
-        {% endfor %}
-      </select>
-
-      <label>Projekt:</label>
-      <select name="projekt_id" id="edit_projekt_id" class="form-control" required>
-          <option value="">Bitte wählen</option>
-        {% for p in projekte %}
-          <option value="{{ p.id }}">{{ p.projektname }}</option>
-        {% endfor %}
-      </select>
-
-      <label>Stunden:</label>
-      <input type="number" name="stunden" id="edit_stunden" step="0.1" class="form-control" required>
-
-      <label>Stundensatz (€):</label>
-      <input type="number" name="stundensatz" id="edit_stundensatz" step="0.01" class="form-control" required>
-
-      <label>Netto-Summe (€):</label>
-      <input type="number" name="netto_summe" id="edit_netto_summe" step="0.01" class="form-control">
-
-      <label>Brutto-Summe (€):</label>
-      <input type="number" name="brutto_summe" id="edit_brutto_summe" step="0.01" class="form-control">
-
-      <label>Rechnungsstatus:</label>
-      <select name="rechnung_status" id="edit_rechnung_status" class="form-control">
-        <option value="">Bitte wählen</option>
-        <option value="offen">Offen</option>
-        <option value="bezahlt">Bezahlt</option>
-      </select>
-
-      <label>Zahlungseingang:</label>
-      <input type="date" name="zahlungseingang" id="edit_zahlung" class="form-control">
-
-      <label>Leistungsnachweis:</label>
-      <input type="text" name="leistungsnachweis" id="edit_leistungsnachweis" class="form-control">
-
-      <label>Bemerkung:</label>
-      <textarea name="bemerkung" id="edit_bemerkung" class="form-control" rows="3"></textarea>
-
-      <br>
-      <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
-    </form>
-  </div>
+    <div class="modal-content">
+        <button class="modal-close" onclick="toggleModal('editAbrechnungModal', false)">×</button>
+        <h2>Abrechnung bearbeiten</h2>
+        <form method="POST" action="{% url 'admin_abrechnung' %}">
+            {% csrf_token %}
+            <input type="hidden" name="edit_id" id="edit_id">
+            <label>Monat:</label>
+            <input type="month" name="monat" id="edit_monat" class="form-control" required>
+            <label>Mitarbeiter:</label>
+            <select name="mitarbeiter_id" id="edit_mitarbeiter" class="form-control" required>
+                <option value=""> --- </option>
+                {% for m in mitarbeiter %}
+                    <option value="{{ m.id }}">{{ m.vorname }} {{ m.nachname }}</option>
+                {% endfor %}
+            </select>
+            <label>Projekt:</label>
+            <select name="projekt_id" id="edit_projekt" class="form-control">
+                <option value=""> --- </option>
+                {% for projekt in projekte %}
+                    <option value="{{ projekt.id }}">{{ projekt.projektname }}</option>
+                {% endfor %}
+            </select>
+            <label>Stunden:</label>
+            <input type="number" name="stunden" id="edit_stunden" step="0.1" class="form-control" required>
+            <label>Stundensatz (€):</label>
+            <input type="number" name="stundensatz" id="edit_stundensatz" step="0.01" class="form-control" required>
+            <label>Netto-Summe (€):</label>
+            <input type="number" name="netto_summe" id="edit_netto_summe" step="0.01" class="form-control">
+            <label>Brutto-Summe (€):</label>
+            <input type="number" name="brutto_summe" id="edit_brutto_summe" step="0.01" class="form-control">
+            <label>Status:</label>
+            <select name="rechnung_status" id="edit_rechnung_status" class="form-control">
+                <option value="">Bitte wählen</option>
+                <option value="offen">Offen</option>
+                <option value="bezahlt">Bezahlt</option>
+            </select>
+            <label>Zahlungseingang:</label>
+            <input type="date" name="zahlungseingang" id="edit_zahlung" class="form-control">
+            <label>Leistungsnachweis:</label>
+            <input type="text" name="leistungsnachweis" id="edit_leistungsnachweis" class="form-control">
+            <label>Bemerkung:</label>
+            <textarea name="bemerkung" id="edit_bemerkung" class="form-control" rows="3"></textarea>
+            <br>
+            <button type="submit" class="btn ab-primary-btn">Aktualisieren</button>
+        </form>
+    </div>
 </div>
-
 
 <script src="{% static 'js/admin_abrechnung.js' %}"></script>
 {% endblock %}

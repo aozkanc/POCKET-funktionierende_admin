@@ -4,6 +4,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from simple_history.models import HistoricalRecords
+from django.db.models import Sum
 
 
 @receiver(post_save, sender=User)
@@ -28,12 +29,12 @@ class Mitarbeiter(models.Model):
         ('Mitarbeiter', 'Mitarbeiter'),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)  # Opsiyonel User bağlantısı
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     vorname = models.CharField(max_length=50)
     nachname = models.CharField(max_length=50)
     standort = models.CharField(max_length=100)
     erste_taetigkeitsstaette = models.CharField(max_length=150)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='-', blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='-', blank=False)
     abteilung = models.CharField(max_length=100)
     rolle = models.CharField(max_length=20, choices=ROLLE_CHOICES, default='-', blank=True)
 
@@ -61,13 +62,36 @@ class Projekt(models.Model):
     kunde_2 = models.CharField(max_length=100, blank=True, null=True)
     projekttyp = models.CharField(max_length=100)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='-')
-    erstellt_von = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='erstellt_projekte')
+    
+    erstellt_von = models.ForeignKey(User, related_name="erstellt_projekte", on_delete=models.CASCADE)
+    manager = models.ManyToManyField(User, related_name="verwaltet_projekte", blank=True)
+
     beschreibung = models.TextField()
+
     class Meta:
         verbose_name_plural = "Projekte"
 
     def __str__(self):
         return self.projektname
+
+    # Gesamtberechnungen:
+    def get_total_einnahmen(self):
+        return self.einnahmen.aggregate(Sum('betrag'))['betrag__sum'] or 0
+
+    def get_total_abrechnung(self):
+        return self.abrechnungen.aggregate(Sum('brutto_summe'))['brutto_summe__sum'] or 0
+
+    def get_total_reisekosten(self):
+        return self.reiseberichte.aggregate(Sum('gesamtkosten'))['gesamtkosten__sum'] or 0
+
+    def get_total_schulungskosten(self):
+        return self.schulungskosten.aggregate(Sum('kosten'))['kosten__sum'] or 0
+
+    def get_total_ausgaben(self):
+        return self.get_total_abrechnung() + self.get_total_reisekosten() + self.get_total_schulungskosten()
+
+    def get_gewinn(self):
+        return self.get_total_einnahmen() - self.get_total_ausgaben()
 
 
 class Einnahme(models.Model):
@@ -78,7 +102,7 @@ class Einnahme(models.Model):
         ('verrechnet', 'Verrechnet'),
     ]
 
-    projekt = models.ForeignKey(Projekt, on_delete=models.CASCADE)
+    projekt = models.ForeignKey(Projekt, on_delete=models.CASCADE, related_name="einnahmen")
     betrag = models.DecimalField(max_digits=10, decimal_places=2)
     zahlungseingang = models.DateField(null=True, blank=True)
     zahlungsart = models.CharField(max_length=50)
@@ -106,8 +130,8 @@ class Abrechnung(models.Model):
         ('storniert', 'Storniert'),
     ]
 
-    mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete=models.CASCADE)
-    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE)
+    projekt = models.ForeignKey(Projekt, on_delete=models.CASCADE, related_name="abrechnungen")
+    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete=models.CASCADE)
     monat = models.CharField(max_length=7, help_text="Format: YYYY-MM (z.B. 2025-03)")
     stunden = models.IntegerField()
     stundensatz = models.DecimalField(max_digits=10, decimal_places=2)
@@ -122,7 +146,8 @@ class Abrechnung(models.Model):
         verbose_name_plural = "Abrechnungen"
 
     def __str__(self):
-        return f"{self.mitarbeiter} - {self.projekt} ({self.monat})"
+        return f"{self.projekt} ({self.monat})"
+
 
 
 class Reisebericht(models.Model):
@@ -133,7 +158,7 @@ class Reisebericht(models.Model):
     ]
 
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete=models.CASCADE)
-    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE)
+    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE, related_name="reiseberichte")
     datum = models.DateField()
     zielort = models.CharField(max_length=100)
     zweck = models.TextField()
@@ -144,11 +169,13 @@ class Reisebericht(models.Model):
     kosten_übernachtung = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     gesamtkosten = models.DecimalField(max_digits=10, decimal_places=2)
     rechnung_vorhanden = models.CharField(max_length=10, choices=RECHNUNG_VORHANDEN_CHOICES, default='-')
+
     class Meta:
         verbose_name_plural = "Reiseberichte"
 
     def __str__(self):
-        return f"{self.mitarbeiter} - {self.zielort} - ({self.datum})"
+        return f"{self.mitarbeiter} - {self.zielort} ({self.datum})"
+
 
 
 class Schulungskosten(models.Model):
@@ -159,7 +186,7 @@ class Schulungskosten(models.Model):
     ]
 
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete=models.CASCADE)
-    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE)
+    projekt = models.ForeignKey('Projekt', on_delete=models.CASCADE, related_name="schulungskosten")
     schulungstyp = models.CharField(max_length=100)
     datum_start = models.DateField()
     datum_ende = models.DateField()
@@ -168,11 +195,13 @@ class Schulungskosten(models.Model):
     anbieter = models.CharField(max_length=150)
     teilgenommen = models.CharField(max_length=10, choices=TEILGENOMMEN_CHOICES, default='-')
     beschreibung = models.TextField(blank=True, null=True)
+
     class Meta:
         verbose_name_plural = "Schulungskosten"
 
     def __str__(self):
         return f"{self.mitarbeiter} - {self.schulungstyp} ({self.datum_start})"
+
 
 
 class Abordnung(models.Model):

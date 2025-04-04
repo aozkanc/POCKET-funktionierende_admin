@@ -5,25 +5,57 @@
     <h2 class="page-title">🧾 Reiseberichte verwalten</h2>
 
     <div class="d-flex flex-wrap gap-3">
-
-        <!-- 📋 Sol: Arama + Liste -->
         <div class="flex-grow-1">
+            <!-- 🔍 Arama + filtre + export -->
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addReiseberichtModal')">
                     <span class="plus-symbol">➕</span> Neue Reise erfassen
                 </button>
                 <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
-                    <input type="text" id="reiseberichtSearch" class="form-control ab-search" placeholder="🔍 Nach Zielort, Zweck, Mitarbeiter...">
+                    <input type="text" id="reiseberichtSearch" class="form-control ab-search" placeholder="🔍 Reiseberichte suchen">
+                    
+                    <!-- 📑 Dropdown filter -->
+                    <div class="dropdown">
+                        <button class="btn ab-btn-custom ab-btn-exp dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            📑 Filter
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 ab-filter-dropdown" aria-labelledby="filterDropdown" style="min-width: 250px;">
+                            <form method="get" class="d-grid gap-2">
+                                <select name="mitarbeiter_id" class="form-control form-control-sm">
+                                    <option value="">👤 Alle Mitarbeiter</option>
+                                    {% for m in mitarbeiter %}
+                                        <option value="{{ m.id }}" {% if m.id|stringformat:"s" == request.GET.mitarbeiter_id %}selected{% endif %}>
+                                            {{ m.vorname }} {{ m.nachname }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <select name="projekt_id" class="form-control form-control-sm">
+                                    <option value="">📁 Alle Projekte</option>
+                                    {% for p in projekte %}
+                                        <option value="{{ p.id }}" {% if p.id|stringformat:"s" == request.GET.projekt_id %}selected{% endif %}>
+                                            {{ p.projektname }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <input type="date" name="start" class="form-control form-control-sm" value="{{ request.GET.start }}">
+                                <input type="date" name="end" class="form-control form-control-sm" value="{{ request.GET.end }}">
+                                <button type="submit" class="btn ab-primary-btn">Filtern</button>
+                            </form>
+                        </div>
+                    </div>
+
                     <a href="{% url 'export_reisebericht' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp">
                         <span class="export-symbol">📤</span> Exportieren
                     </a>
                 </div>
             </div>
 
+            <!-- 📋 Tablo -->
             <div class="table-responsive">
                 <table class="table table-bordered ab-tabelle" id="reiseberichtTable">
                     <thead>
                         <tr>
+                            <th>Nr.</th>
                             <th onclick="sortReiseberichtTable(0)">Datum 🔽</th>
                             <th onclick="sortReiseberichtTable(1)">Mitarbeiter 🔽</th>
                             <th onclick="sortReiseberichtTable(2)">Projekt 🔽</th>
@@ -35,17 +67,12 @@
                     <tbody>
                         {% for r in reiseberichte %}
                         <tr>
+                            <td>{{ forloop.counter }}</td>
                             <td>{{ r.datum|date:"d.m.Y" }}</td>
                             <td>{{ r.mitarbeiter.vorname }} {{ r.mitarbeiter.nachname }}</td>
-                            <td>
-                                {% if r.projekt %}
-                                    {{ r.projekt.projektname }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
+                            <td>{% if r.projekt %}{{ r.projekt.projektname }}{% else %}-{% endif %}</td>
                             <td>{{ r.zielort }}</td>
-                            <td>{{ r.gesamtkosten }}</td>
+                            <td class="text-end">{{ r.gesamtkosten }}</td>
                             <td class="ab-actions">
                                 <a href="#" class="edit-reisebericht-btn"
                                    data-id="{{ r.id }}"
@@ -61,19 +88,19 @@
                                    data-kosten-uebernachtung="{{ r.kosten_übernachtung }}"
                                    data-rechnung="{{ r.rechnung_vorhanden }}">
                                    ✏️ Bearbeiten
-                                </a>
-                                |
+                                </a> |
                                 <a href="{% url 'admin_reisebericht_delete' r.id %}" onclick="return confirm('❗Wirklich löschen?')">🗑️ Löschen</a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted">Keine Einträge gefunden.</td>
+                            <td colspan="6" class="text-center text-muted">Keine Einträge gefunden.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
             <!-- 📄 Pagination -->
             <div class="pagination mt-3">
                 <span class="step-links">
@@ -81,51 +108,13 @@
                         <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; erste</a>
                         <a href="?page={{ reiseberichte.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">zurück</a>
                     {% endif %}
-
-                    <span class="current">
-                        Seite {{ reiseberichte.number }} von {{ reiseberichte.paginator.num_pages }}.
-                    </span>
-
+                    <span class="current">Seite {{ reiseberichte.number }} von {{ reiseberichte.paginator.num_pages }}.</span>
                     {% if reiseberichte.has_next %}
                         <a href="?page={{ reiseberichte.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">weiter</a>
                         <a href="?page={{ reiseberichte.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">letzte &raquo;</a>
                     {% endif %}
                 </span>
             </div>
-        </div>
-
-        <!-- 🎯 Filtre Kutusu -->
-        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px;">
-            <h5 class="ab-filter-title">📑 Filteroptionen</h5>
-            <form method="get" class="d-grid gap-2">
-                <select name="mitarbeiter_id" class="form-control">
-                    <option value="">👤 Alle Mitarbeiter</option>
-                    {% for m in mitarbeiter %}
-                        <option value="{{ m.id }}" {% if request.GET.mitarbeiter_id == m.id|stringformat:"s" %}selected{% endif %}>
-                            {{ m.vorname }} {{ m.nachname }}
-                        </option>
-                    {% endfor %}
-                </select>
-
-                <select name="projekt_id" class="form-control">
-                    <option value="">📁 Alle Projekte</option>
-                    {% for p in projekte %}
-                        <option value="{{ p.id }}" {% if request.GET.projekt_id == p.id|stringformat:"s" %}selected{% endif %}>
-                            {{ p.projektname }}
-                        </option>
-                    {% endfor %}
-                </select>
-
-                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
-                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
-
-                <label>
-                    <input type="checkbox" name="nur_mit_hotel" value="1" {% if request.GET.nur_mit_hotel %}checked{% endif %}>
-                    Nur mit Hotel
-                </label>
-
-                <button type="submit" class="btn btn-primary">Filtern</button>
-            </form>
         </div>
     </div>
 </div>

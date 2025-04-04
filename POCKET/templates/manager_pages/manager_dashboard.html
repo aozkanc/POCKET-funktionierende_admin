@@ -1,27 +1,115 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
 <div class="container">
-  <h2 class="page-title">📋 Manager Dashboard</h2>
-  <p>Willkommen, {{ user.username }}!</p>
+    <h2 class="page-title">📊 Manager-Dashboard</h2>
+    <p>Willkommen, {{ user.username }}!</p>
 
-  <div class="row g-3 mt-4">
-    <div class="col-md-6">
-      <div class="card bg-light border">
-        <div class="card-header">📁 Eigene Projekte</div>
-        <div class="card-body">
-          <h4 class="card-title">{{ total_projekte }}</h4>
+    <!-- 💸 Finanzübersicht -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">💰 Gesamtkosten</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title">{{ total_kosten|floatformat:2 }} €</h5>
+                </div>
+            </div>
         </div>
-      </div>
+    
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">📈 Einnahmen</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title">{{ total_einnahmen|floatformat:2 }} €</h5>
+                </div>
+            </div>
+        </div>
+    
+        <div class="col-md-4">
+            <div class="card text-black bg-light">
+                <div class="card-header">💸 Netto-Gewinn</div>
+                <div class="card-body py-2">
+                    <h5 class="card-title {% if nettogewinn < 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ nettogewinn|floatformat:2 }} €
+                    </h5>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="col-md-6">
-      <div class="card bg-light border">
-        <div class="card-header">🧾 Abrechnungen (eigene Projekte)</div>
-        <div class="card-body">
-          <h4 class="card-title">{{ total_abrechnungen }}</h4>
+    <!-- 📊 Grafiken -->
+    <div class="row mb-4">
+        <div class="col-md-6 text-center">
+            <h5>Kostenverteilung nach Kategorie</h5>
+            <canvas id="kostenKategorieChart"
+                    class="dashboard-chart"
+                    data-abrechnung="{{ category_data.Abrechnung|default:0 }}"
+                    data-reise="{{ category_data.Reise|default:0 }}"
+                    data-schulung="{{ category_data.Schulung|default:0 }}">
+            </canvas>
         </div>
-      </div>
+
+        <div class="col-md-6 text-center">
+            <h5>Einnahmen vs Kosten</h5>
+            <canvas id="einnahmeVsKostenChart"
+                    class="dashboard-chart"
+                    data-einnahmen="{{ einnahme_vs_kosten_data.Einnahmen|default:0 }}"
+                    data-kosten="{{ einnahme_vs_kosten_data.Kosten|default:0 }}">
+            </canvas>
+        </div>
     </div>
-  </div>
+
+    <!-- 🔗 Navigationskarten -->
+    <div class="row row-cols-1 row-cols-md-3 g-3 mt-2 align-items-stretch">
+        <div class="col">
+            <a href="{% url 'manager_projekte' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+                📁 Projekte<br><small class="text-muted">Eigene Projekte</small>
+                <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+                    {{ total_projekte }}
+                </span>
+            </a>
+        </div>
+
+        <div class="col">
+            <a href="{% url 'manager_abrechnung' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+                🧾 Abrechnungen<br><small class="text-muted">Nur eigene Projekte</small>
+                <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+                    {{ total_abrechnungen }}
+                </span>
+            </a>
+        </div>
+
+        <div class="col">
+            <a href="{% url 'manager_reisebericht' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+                🧳 Reiseberichte<br><small class="text-muted">Nur eigene Projekte</small>
+                <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+                    {{ total_reisen }}
+                </span>
+            </a>
+        </div>
+
+        <div class="col">
+            <a href="{% url 'manager_schulungskosten' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+                📚 Schulungskosten<br><small class="text-muted">Nur eigene Projekte</small>
+                <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+                    {{ total_schulungen }}
+                </span>
+            </a>
+        </div>
+
+        <div class="col">
+            <a href="{% url 'manager_abordnungen' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
+                📌 Abordnungen<br><small class="text-muted">Teamzuteilungen</small>
+                <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
+                    {{ total_abordnungen }}
+                </span>
+            </a>
+        </div>
+    </div>
 </div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

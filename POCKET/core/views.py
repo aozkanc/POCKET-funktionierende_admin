@@ -11,7 +11,7 @@ from .forms import BenutzerForm, BenutzerProfilForm
 from django.contrib import messages
 from simple_history.utils import update_change_reason
 from core.models import BenutzerProfil
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 from collections import defaultdict
@@ -217,7 +217,8 @@ def admin_projekte_view(request):
                     kunde_2=kunde_2,
                     projekttyp=projekttyp,
                     status=status,
-                    beschreibung=beschreibung
+                    beschreibung=beschreibung,
+                    erstellt_von=request.user  # 👈 eksikti!
                 )
                 messages.success(request, "✅ Projekt erfolgreich gespeichert.")
         else:
@@ -228,6 +229,7 @@ def admin_projekte_view(request):
     # ✅ GET (Listeleme ve Filtreleme)
     projekte = Projekt.objects.all()
 
+    # 🔍 Filtreleme
     projektname = request.GET.get("projektname")
     kunde_1 = request.GET.get("kunde")
     startdatum = request.GET.get("start")
@@ -255,6 +257,7 @@ def admin_projekte_view(request):
     })
 
 
+
 # ✅ Projekt Silme
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -271,14 +274,17 @@ def admin_projekt_delete(request, id):
 def export_projekte(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="projekte.csv"'
-    response.write('\ufeff')
+    response.write('\ufeff')  # Excel uyumu için BOM karakteri
 
     writer = csv.writer(response)
-    writer.writerow(['Projektname', 'Kunde 1', 'Startdatum', 'Enddatum', 'Budget', 'Status'])
+    writer.writerow([
+        'Projektname', 'Kunde 1', 'Startdatum', 'Enddatum', 'Budget',
+        'Einnahmen (€)', 'Ausgaben (€)', 'Gewinn (€)', 'Status'
+    ])
 
     projekte = Projekt.objects.all()
 
-    # Filtreleme
+    # 🔍 Filtreler (isteğe bağlı)
     projektname = request.GET.get("projektname")
     kunde_1 = request.GET.get("kunde")
     startdatum = request.GET.get("start")
@@ -296,13 +302,17 @@ def export_projekte(request):
     if status:
         projekte = projekte.filter(status__icontains=status)
 
+    # 📤 Verileri yaz
     for p in projekte:
         writer.writerow([
             p.projektname,
             p.kunde_1,
             p.startdatum.strftime("%d.%m.%Y"),
             p.enddatum.strftime("%d.%m.%Y"),
-            p.budget,
+            float(p.budget),
+            float(p.get_total_einnahmen()),
+            float(p.get_total_ausgaben()),
+            float(p.get_gewinn()),
             p.status
         ])
 
@@ -425,37 +435,43 @@ def admin_mitarbeiter_view(request):
         status = request.POST.get("status")
         rolle = request.POST.get("rolle")
 
-        if vorname and nachname and standort and erste_taetigkeitsstaette and abteilung and status and rolle:
-            if edit_id:
-                # 🔄 Güncelleme
-                m = get_object_or_404(Mitarbeiter, id=edit_id)
-                m.vorname = vorname
-                m.nachname = nachname
-                m.standort = standort
-                m.erste_taetigkeitsstaette = erste_taetigkeitsstaette
-                m.abteilung = abteilung
-                m.status = status
-                m.rolle = rolle
-                m.save()
-                messages.success(request, "✅ Mitarbeiter wurde aktualisiert.")
-            else:
-                # ➕ Yeni kayıt
-                Mitarbeiter.objects.create(
-                    vorname=vorname,
-                    nachname=nachname,
-                    standort=standort,
-                    erste_taetigkeitsstaette=erste_taetigkeitsstaette,
-                    abteilung=abteilung,
-                    status=status,
-                    rolle=rolle
-                )
-                messages.success(request, "✅ Mitarbeiter erfolgreich gespeichert.")
-        else:
+        # ❗ Zorunlu alan ve geçerli seçim kontrolleri
+        if not all([vorname, nachname, standort, erste_taetigkeitsstaette, abteilung, status, rolle]):
             messages.warning(request, "⚠️ Bitte alle Felder ausfüllen.")
+            return redirect("admin_mitarbeiter")
+
+        if rolle == "-" or status == "-":
+            messages.warning(request, "⚠️ Bitte wählen Sie eine gültige Rolle und einen gültigen Status aus.")
+            return redirect("admin_mitarbeiter")
+
+        if edit_id:
+            # 🔄 GÜNCELLEME
+            mitarbeiter = get_object_or_404(Mitarbeiter, id=edit_id)
+            mitarbeiter.vorname = vorname
+            mitarbeiter.nachname = nachname
+            mitarbeiter.standort = standort
+            mitarbeiter.erste_taetigkeitsstaette = erste_taetigkeitsstaette
+            mitarbeiter.abteilung = abteilung
+            mitarbeiter.status = status
+            mitarbeiter.rolle = rolle
+            mitarbeiter.save()
+            messages.success(request, "✅ Mitarbeiter wurde aktualisiert.")
+        else:
+            # ➕ YENİ KAYIT
+            Mitarbeiter.objects.create(
+                vorname=vorname,
+                nachname=nachname,
+                standort=standort,
+                erste_taetigkeitsstaette=erste_taetigkeitsstaette,
+                abteilung=abteilung,
+                status=status,
+                rolle=rolle
+            )
+            messages.success(request, "✅ Mitarbeiter erfolgreich gespeichert.")
 
         return redirect("admin_mitarbeiter")
 
-    # ✅ GET: Listeleme + filtre
+    # ✅ GET: Listeleme + Filtre
     mitarbeiter = Mitarbeiter.objects.all()
     vorname = request.GET.get("vorname")
     nachname = request.GET.get("nachname")
@@ -468,18 +484,18 @@ def admin_mitarbeiter_view(request):
     if nachname:
         mitarbeiter = mitarbeiter.filter(nachname__icontains=nachname)
     if rolle:
-        mitarbeiter = mitarbeiter.filter(rolle__icontains=rolle)
+        mitarbeiter = mitarbeiter.filter(rolle=rolle)
     if abteilung:
         mitarbeiter = mitarbeiter.filter(abteilung__icontains=abteilung)
     if status:
-        mitarbeiter = mitarbeiter.filter(status__icontains=status)
+        mitarbeiter = mitarbeiter.filter(status=status)
 
     paginator = Paginator(mitarbeiter, 10)
-    page_number = request.GET.get('page')
+    page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     return render(request, "admin_pages/admin_mitarbeiter.html", {
-        "mitarbeiter": page_obj
+        "mitarbeiter": page_obj,
     })
 
 
@@ -1085,52 +1101,785 @@ def admin_reports_view(request):
 
 
 
+# Manager kontrolü
+def is_manager(user):
+    return user.groups.filter(name="Manager").exists()
+
 @login_required
-@user_passes_test(lambda u: u.groups.filter(name="Manager").exists())
+@user_passes_test(is_manager)
 def manager_dashboard_view(request):
-    manager = request.user
+    user = request.user
     
-    # Kendi projelerine ait verileri alıyoruz
-    manager_projects = Projekt.objects.filter(created_by=manager)
+    # Projeyi oluşturan manager ve atanmış manager'lar
+    eigene_projekte = Projekt.objects.filter(erstellt_von=user)  # Yalnızca manager tarafından oluşturulan projeler
+    zugewiesene_projekte = Projekt.objects.filter(manager=user)  # Manager'ın atandığı projeler
 
-    # Gelir ve gider verilerini alıyoruz
-    total_einnahmen = Einnahme.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('betrag'))['s'] or 0
-    total_kosten = Abrechnung.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('brutto_summe'))['s'] or 0
-    total_reise = Reisebericht.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten_fahrt'))['s'] or 0
-    total_hotel = Reisebericht.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten_übernachtung'))['s'] or 0
-    total_schulung = Schulungskosten.objects.filter(projekt__in=manager_projects).aggregate(s=Sum('kosten'))['s'] or 0
+    # Her iki projeyi birleştir
+    projekte = eigene_projekte | zugewiesene_projekte
+    
+    # İlgili proje ID'leri
+    projekte_ids = projekte.values_list('id', flat=True)
 
-    # Maliyet kategorilerini hazırlıyoruz
+    # 📊 Sayılar
+    total_projekte = projekte.count()
+    total_abrechnungen = Abrechnung.objects.filter(projekt__in=projekte_ids).count()
+    total_reisen = Reisebericht.objects.filter(projekt__in=projekte_ids).count()
+    total_schulungen = Schulungskosten.objects.filter(projekt__in=projekte_ids).count()
+    total_einnahmen = Einnahme.objects.filter(projekt__in=projekte_ids).aggregate(s=Sum("betrag"))["s"] or 0
+    total_abordnungen = Abordnung.objects.filter(projekt__in=projekte_ids).count()
+
+    # Gider hesapları
+    total_abrechnung = Abrechnung.objects.filter(projekt__in=projekte_ids).aggregate(s=Sum("brutto_summe"))["s"] or 0
+    total_reise = Reisebericht.objects.filter(projekt__in=projekte_ids).aggregate(s=Sum("kosten_fahrt"))["s"] or 0
+    total_hotel = Reisebericht.objects.filter(projekt__in=projekte_ids).aggregate(s=Sum("kosten_übernachtung"))["s"] or 0
+    total_schulung = Schulungskosten.objects.filter(projekt__in=projekte_ids).aggregate(s=Sum("kosten"))["s"] or 0
+
+    total_kosten = total_abrechnung + total_reise + total_hotel + total_schulung
+    nettogewinn = total_einnahmen - total_kosten
+
+    # Grafik verileri
     category_data = {
-        "Abrechnung": float(total_kosten),
+        "Abrechnung": float(total_abrechnung),
         "Reise": float(total_reise + total_hotel),
         "Schulung": float(total_schulung),
     }
 
-    # Kar/Zarar hesaplaması
-    nettogewinn = total_einnahmen - total_kosten
-
-    # Grafik için karşılaştırma verileri
     einnahme_vs_kosten_data = {
         "Einnahmen": float(total_einnahmen),
         "Kosten": float(total_kosten),
     }
 
-    # Grafik verisi hazırlığı (projeye özel)
-    projekt_kosten = total_reise + total_hotel + total_schulung  # Projeye bağlı giderler
-    allgemeine_kosten = total_kosten - projekt_kosten
-
     context = {
+        "total_projekte": total_projekte,
+        "total_abrechnungen": total_abrechnungen,
+        "total_reisen": total_reisen,
+        "total_schulungen": total_schulungen,
+        "total_abordnungen": total_abordnungen,
         "total_einnahmen": total_einnahmen,
         "total_kosten": total_kosten,
         "nettogewinn": nettogewinn,
         "category_data": category_data,
         "einnahme_vs_kosten_data": einnahme_vs_kosten_data,
-        "projekt_kosten": projekt_kosten,
-        "allgemeine_kosten": allgemeine_kosten,
     }
 
     return render(request, "manager_pages/manager_dashboard.html", context)
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_projekte_view(request):
+#     user = request.user
+    
+#     # Kullanıcının yönetiminde olan projeler: hem kendi oluşturduğu hem de atanmış olduğu projeler
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+
+#         # Eğer "meine_projekte" seçeneği işaretliyse, sadece manager'ın oluşturduğu projeleri göster
+#     if request.GET.get('meine_projekte'):
+#         projekte = projekte.filter(erstellt_von=user)
+
+#     # 🔍 Filtreleme
+#     projektname = request.GET.get("projektname")
+#     kunde_1 = request.GET.get("kunde")
+#     startdatum = request.GET.get("start")
+#     enddatum = request.GET.get("end")
+#     status = request.GET.get("status")
+
+#     if projektname:
+#         projekte = projekte.filter(projektname__icontains=projektname)
+#     if kunde_1:
+#         projekte = projekte.filter(kunde_1__icontains=kunde_1)
+#     if startdatum:
+#         projekte = projekte.filter(startdatum__gte=startdatum)
+#     if enddatum:
+#         projekte = projekte.filter(enddatum__lte=enddatum)
+#     if status:
+#         projekte = projekte.filter(status__icontains=status)
+
+#     # Sayfalama
+#     paginator = Paginator(projekte, 10)
+#     page_number = request.GET.get("page")
+#     page_obj = paginator.get_page(page_number)
+
+#     # POST işlemi (Güncelleme / Ekleme)
+#     if request.method == "POST":
+#         edit_id = request.POST.get("edit_id")
+#         projektname = request.POST.get("projektname")
+#         startdatum = request.POST.get("startdatum")
+#         enddatum = request.POST.get("enddatum")
+#         budget = request.POST.get("budget")
+#         kunde_1 = request.POST.get("kunde_1")
+#         kunde_2 = request.POST.get("kunde_2")
+#         projekttyp = request.POST.get("projekttyp")
+#         status = request.POST.get("status")
+#         beschreibung = request.POST.get("beschreibung")
+
+#         if projektname and startdatum and enddatum and budget and kunde_1 and projekttyp and status:
+#             if edit_id:
+#                 # 🔄 Güncelleme
+#                 projekt = get_object_or_404(Projekt, id=edit_id, erstellt_von=user)
+#                 projekt.projektname = projektname
+#                 projekt.startdatum = startdatum
+#                 projekt.enddatum = enddatum
+#                 projekt.budget = budget
+#                 projekt.kunde_1 = kunde_1
+#                 projekt.kunde_2 = kunde_2
+#                 projekt.projekttyp = projekttyp
+#                 projekt.status = status
+#                 projekt.beschreibung = beschreibung
+#                 projekt.save()
+#                 messages.success(request, "✅ Projekt wurde aktualisiert.")
+#             else:
+#                 # ➕ Yeni Kayıt
+#                 projekt = Projekt.objects.create(
+#                     projektname=projektname,
+#                     startdatum=startdatum,
+#                     enddatum=enddatum,
+#                     budget=budget,
+#                     kunde_1=kunde_1,
+#                     kunde_2=kunde_2,
+#                     projekttyp=projekttyp,
+#                     status=status,
+#                     beschreibung=beschreibung,
+#                     erstellt_von=user
+#                 )
+#                 # Manager olarak projeyi kendisine atama
+#                 projekt.manager.add(user)
+#                 messages.success(request, "✅ Projekt erfolgreich gespeichert.")
+#         else:
+#             messages.warning(request, "⚠️ Bitte alle Pflichtfelder ausfüllen.")
+
+#         return redirect("manager_projekte")
+
+#     return render(request, "manager_pages/manager_projekte.html", {
+#         "projekte": page_obj,
+#     })
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_projekte_delete(request, id):
+#     # Projeyi bul
+#     projekt = get_object_or_404(Projekt, id=id)
+
+#     # Projeyi sadece onu oluşturan kullanıcı silebilir
+#     if projekt.erstellt_von != request.user:
+#         messages.error(request, "❗ Sie können nur Ihre eigenen Projekte löschen!")
+#         return redirect("manager_projekte")
+
+#     # Projeyi sil
+#     projekt.delete()
+#     messages.success(request, "🗑️ Projekt wurde erfolgreich gelöscht.")
+#     return redirect("manager_projekte")
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_projekte_export(request):
+#     user = request.user
+
+#     # Kullanıcının oluşturduğu ve atanmış olduğu projeler
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+
+#     # CSV formatında bir response oluşturuyoruz
+#     response = HttpResponse(content_type='text/csv; charset=utf-8')
+#     response['Content-Disposition'] = 'attachment; filename="projekte.csv"'
+#     response.write('\ufeff')  # UTF-8 BOM karakteri ekliyoruz
+
+#     writer = csv.writer(response)
+#     writer.writerow(['Projektname', 'Kunde 1', 'Startdatum', 'Enddatum', 'Budget', 'Status', 'Beschreibung'])
+
+#     # Projeleri yazıyoruz
+#     for projekt in projekte:
+#         writer.writerow([projekt.projektname, projekt.kunde_1, projekt.startdatum.strftime('%d.%m.%Y'),
+#                          projekt.enddatum.strftime('%d.%m.%Y'), projekt.budget, projekt.status, projekt.beschreibung])
+
+#     return response
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abordnungen_view(request):
+#     user = request.user
+
+#     # Manager'ın oluşturduğu projeleri alıyoruz
+#     eigene_projekte = Projekt.objects.filter(erstellt_von=user)
+
+#     # Manager'ın atanmış olduğu projeleri alıyoruz
+#     zugewiesene_projekte = Projekt.objects.filter(manager=user)
+
+#     # Kendi oluşturduğu ve atanmış olduğu projeleri birleştiriyoruz
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+
+#     # Sayfalama için Abordnungen
+#     aborderungen = Abordnung.objects.filter(projekt__in=projekte)
+
+#     # 🔍 Filtreleme
+#     mitarbeiter_id = request.GET.get('mitarbeiter_id')
+#     projekt_id = request.GET.get('projekt_id')
+#     start = request.GET.get('start')
+#     end = request.GET.get('end')
+
+#     if mitarbeiter_id:
+#         aborderungen = aborderungen.filter(mitarbeiter_id=mitarbeiter_id)
+#     if projekt_id:
+#         aborderungen = aborderungen.filter(projekt_id=projekt_id)
+#     if start:
+#         aborderungen = aborderungen.filter(zeitraum_start__gte=start)
+#     if end:
+#         aborderungen = aborderungen.filter(zeitraum_ende__lte=end)
+
+#     # Sayfalama
+#     paginator = Paginator(aborderungen, 10)
+#     page_number = request.GET.get('page')
+#     page_obj = paginator.get_page(page_number)
+
+#     # POST işlemi (Ekleme / Güncelleme)
+#     if request.method == 'POST':
+#         mitarbeiter = request.POST.get('mitarbeiter')
+#         projekt_id = request.POST.get('projekt')
+#         zeitraum_start = request.POST.get('zeitraum_start')
+#         zeitraum_ende = request.POST.get('zeitraum_ende')
+#         edit_id = request.POST.get('edit_id')
+
+#         # Yalnızca kendi oluşturduğu projelere Abordnung yapılabilir
+#         if not Projekt.objects.filter(id=projekt_id, erstellt_von=user).exists():
+#             messages.error(request, "❌ Sie können nur Abordnungen zu Ihren eigenen Projekten erstellen/bearbeiten.")
+#             return redirect("manager_abordnungen")
+
+#         if edit_id:
+#             abordnung = get_object_or_404(Abordnung, id=edit_id)
+
+#             if abordnung.projekt.erstellt_von != user:
+#                 messages.error(request, "❌ Sie können nur Ihre eigenen Abordnungen bearbeiten.")
+#                 return redirect("manager_abordnungen")
+
+#             abordnung.mitarbeiter_id = mitarbeiter
+#             abordnung.projekt_id = projekt_id
+#             abordnung.zeitraum_start = zeitraum_start
+#             abordnung.zeitraum_ende = zeitraum_ende
+#             abordnung.save()
+#             messages.success(request, "✅ Abordnung erfolgreich aktualisiert.")
+#         else:
+#             Abordnung.objects.create(
+#                 mitarbeiter_id=mitarbeiter,
+#                 projekt_id=projekt_id,
+#                 zeitraum_start=zeitraum_start,
+#                 zeitraum_ende=zeitraum_ende
+#             )
+#             messages.success(request, "✅ Abordnung erfolgreich gespeichert.")
+
+#         return redirect('manager_abordnungen')
+
+#     return render(request, 'manager_pages/manager_abordnungen.html', {
+#         'aborderungen': page_obj,
+#         'projekte': projekte,
+#         'mitarbeiter_list': Mitarbeiter.objects.all(),  # Tüm çalışanlar
+#     })
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abordnungen_delete(request, id):
+#     user = request.user
+#     abordnung = get_object_or_404(Abordnung, id=id)
+
+#     if abordnung.projekt.erstellt_von != user:
+#         messages.error(request, "❌ Sie können nur Ihre eigenen Abordnungen löschen.")
+#         return redirect("manager_abordnungen")
+
+#     abordnung.delete()
+#     messages.success(request, "🗑️ Abordnung wurde gelöscht.")
+#     return redirect("manager_abordnungen")
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abordnungen_export(request):
+#     user = request.user
+
+#     # Sadece erişilebilir projeler için export
+#     projekte_ids = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user)).values_list('id', flat=True)
+#     aborderungen = Abordnung.objects.filter(projekt__in=projekte_ids)
+
+#     response = HttpResponse(content_type='text/csv; charset=utf-8')
+#     response['Content-Disposition'] = 'attachment; filename="abordnungen.csv"'
+#     response.write('\ufeff')  # UTF-8 BOM
+
+#     writer = csv.writer(response)
+#     writer.writerow(['Mitarbeiter', 'Projekt', 'Zeitraum Start', 'Zeitraum Ende'])
+
+#     for abordnung in aborderungen:
+#         writer.writerow([
+#             str(abordnung.mitarbeiter),
+#             str(abordnung.projekt),
+#             abordnung.zeitraum_start.strftime('%d.%m.%Y'),
+#             abordnung.zeitraum_ende.strftime('%d.%m.%Y')
+#         ])
+
+#     return response
+
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_schulungskosten_view(request):
+#     user = request.user
+
+#     # Kullanıcının oluşturduğu veya atandığı projelere ait Schulungskosten
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+#     projekte_ids = projekte.values_list("id", flat=True)
+
+#     schulungskosten = Schulungskosten.objects.filter(projekt__in=projekte_ids)
+
+#     # 🔍 Filtreleme
+#     projektname = request.GET.get("projektname")
+#     mitarbeiter = request.GET.get("mitarbeiter")
+#     start = request.GET.get("start")
+#     end = request.GET.get("end")
+
+#     if projektname:
+#         schulungskosten = schulungskosten.filter(projekt__projektname__icontains=projektname)
+#     if mitarbeiter:
+#         schulungskosten = schulungskosten.filter(
+#             Q(mitarbeiter__vorname__icontains=mitarbeiter) |
+#             Q(mitarbeiter__nachname__icontains=mitarbeiter)
+#         )
+#     if start:
+#         schulungskosten = schulungskosten.filter(datum_start__gte=start)
+#     if end:
+#         schulungskosten = schulungskosten.filter(datum_ende__lte=end)
+
+#     # ➕ / ✏️ POST işlemleri
+#     if request.method == "POST":
+#         edit_id = request.POST.get("edit_id")
+
+#         mitarbeiter_id = request.POST.get("mitarbeiter")
+#         projekt_id = request.POST.get("projekt")
+#         schulungstyp = request.POST.get("schulungstyp")
+#         datum_start = request.POST.get("datum_start")
+#         datum_ende = request.POST.get("datum_ende")
+#         dauer = request.POST.get("dauer")
+#         kosten = request.POST.get("kosten")
+#         anbieter = request.POST.get("anbieter")
+#         teilgenommen = request.POST.get("teilgenommen")
+#         beschreibung = request.POST.get("beschreibung")
+
+#         # 🛡️ Yetki kontrolü: sadece kendi oluşturduğu projelere kayıt yapılabilir
+#         if not Projekt.objects.filter(id=projekt_id, erstellt_von=user).exists():
+#             messages.error(request, "❌ Nur eigene Projekte können bearbeitet oder ergänzt werden.")
+#             return redirect("manager_schulungskosten")
+
+#         if edit_id:
+#             # ✏️ Güncelleme
+#             eintrag = get_object_or_404(Schulungskosten, id=edit_id, projekt__erstellt_von=user)
+#             eintrag.mitarbeiter_id = mitarbeiter_id
+#             eintrag.projekt_id = projekt_id
+#             eintrag.schulungstyp = schulungstyp
+#             eintrag.datum_start = datum_start
+#             eintrag.datum_ende = datum_ende
+#             eintrag.dauer = dauer
+#             eintrag.kosten = kosten
+#             eintrag.anbieter = anbieter
+#             eintrag.teilgenommen = teilgenommen
+#             eintrag.beschreibung = beschreibung
+#             eintrag.save()
+#             messages.success(request, "✅ Schulungskosten wurden aktualisiert.")
+#         else:
+#             # ➕ Yeni kayıt
+#             Schulungskosten.objects.create(
+#                 mitarbeiter_id=mitarbeiter_id,
+#                 projekt_id=projekt_id,
+#                 schulungstyp=schulungstyp,
+#                 datum_start=datum_start,
+#                 datum_ende=datum_ende,
+#                 dauer=dauer,
+#                 kosten=kosten,
+#                 anbieter=anbieter,
+#                 teilgenommen=teilgenommen,
+#                 beschreibung=beschreibung
+#             )
+#             messages.success(request, "✅ Schulungskosten wurden erfolgreich gespeichert.")
+
+#         return redirect("manager_schulungskosten")
+
+#     # Sayfalama
+#     paginator = Paginator(schulungskosten, 10)
+#     page_number = request.GET.get("page")
+#     page_obj = paginator.get_page(page_number)
+
+#     return render(request, "manager_pages/manager_schulungskosten.html", {
+#         "schulungskosten": page_obj,
+#         "projekte": projekte  # dropdownlarda kullanılabilir
+#     })
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_schulungskosten_delete(request, id):
+#     user = request.user
+
+#     # Silme yetkisi sadece kendi oluşturduğu projeye ait kayıtlarda geçerlidir
+#     schulung = get_object_or_404(Schulungskosten, id=id)
+
+#     if schulung.projekt.erstellt_von != user:
+#         messages.error(request, "❌ Sie dürfen nur Schulungskosten Ihrer eigenen Projekte löschen.")
+#         return redirect("manager_schulungskosten")
+
+#     schulung.delete()
+#     messages.success(request, "🗑️ Schulungskosten wurden erfolgreich gelöscht.")
+#     return redirect("manager_schulungskosten")
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_schulungskosten_export(request):
+#     user = request.user
+
+#     # Manager'ın oluşturduğu ve atandığı projeler
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+#     schulungskosten = Schulungskosten.objects.filter(projekt__in=projekte)
+
+#     response = HttpResponse(content_type='text/csv; charset=utf-8')
+#     response['Content-Disposition'] = 'attachment; filename="schulungskosten.csv"'
+#     response.write('\ufeff')  # Excel uyumluluğu için BOM
+
+#     writer = csv.writer(response)
+#     writer.writerow([
+#         "Projektname", "Mitarbeiter", "Schulungstyp", "Startdatum", "Enddatum",
+#         "Dauer (Stunden)", "Kosten (€)", "Anbieter", "Teilgenommen", "Beschreibung"
+#     ])
+
+#     for s in schulungskosten:
+#         writer.writerow([
+#             s.projekt.projektname,
+#             f"{s.mitarbeiter.vorname} {s.mitarbeiter.nachname}",
+#             s.schulungstyp,
+#             s.datum_start.strftime('%d.%m.%Y'),
+#             s.datum_ende.strftime('%d.%m.%Y'),
+#             s.dauer,
+#             s.kosten,
+#             s.anbieter,
+#             s.teilgenommen,
+#             s.beschreibung or ""
+#         ])
+
+#     return response
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abrechnung_view(request):
+#     user = request.user
+
+#     # Manager'ın oluşturduğu projeler ve atandığı projeler
+#     projekte = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user))
+
+#     # Tabloda gösterilecek Abrechnung'lar: hem kendi oluşturduğu projeler, hem de atandığı projelerdeki Abrechnung'lar
+#     projekte_ids = projekte.values_list("id", flat=True)
+#     abrechnungen = Abrechnung.objects.filter(projekt__in=projekte_ids)
+
+#     # 🔍 Filtreleme işlemleri
+#     mitarbeiter_id = request.GET.get("mitarbeiter_id")
+#     projekt_id = request.GET.get("projekt_id")
+#     monat = request.GET.get("monat")
+#     stunden_min = request.GET.get("stunden_min")
+#     netto_summe_min = request.GET.get("netto_summe_min")
+
+#     if mitarbeiter_id:
+#         abrechnungen = abrechnungen.filter(mitarbeiter_id=mitarbeiter_id)
+#     if projekt_id:
+#         abrechnungen = abrechnungen.filter(projekt_id=projekt_id)
+#     if monat:
+#         abrechnungen = abrechnungen.filter(monat__icontains=monat)
+#     if stunden_min:
+#         abrechnungen = abrechnungen.filter(stunden__gte=stunden_min)
+#     if netto_summe_min:
+#         abrechnungen = abrechnungen.filter(netto_summe__gte=netto_summe_min)
+
+#     # Sayfalama
+#     paginator = Paginator(abrechnungen, 10)
+#     page_number = request.GET.get("page")
+#     page_obj = paginator.get_page(page_number)
+
+#     # POST işlemi (Ekleme ve Güncelleme)
+#     if request.method == "POST":
+#         mitarbeiter_id = request.POST.get("mitarbeiter")
+#         projekt_id = request.POST.get("projekt")
+#         monat = request.POST.get("monat")
+#         stunden = request.POST.get("stunden")
+#         stundensatz = request.POST.get("stundensatz")
+#         rechnung_status = request.POST.get("rechnung_status")
+#         zahlungseingang = request.POST.get("zahlungseingang")
+#         leistungsnachweis = request.POST.get("leistungsnachweis")
+#         bemerkung = request.POST.get("bemerkung")
+#         edit_id = request.POST.get("edit_id")
+
+#         # Yalnızca kendi projelerine Abrechnung eklenebilir
+#         if not Projekt.objects.filter(id=projekt_id, erstellt_von=user).exists():
+#             messages.error(request, "❌ Sie dürfen nur Abrechnungen zu Ihren eigenen Projekten hinzufügen oder bearbeiten.")
+#             return redirect("manager_abrechnung")
+
+#         # Gereklilikler
+#         if mitarbeiter_id and monat and stunden and stundensatz:
+#             try:
+#                 stunden = float(stunden)
+#                 stundensatz = float(stundensatz)
+#                 netto_summe = stunden * stundensatz
+#                 brutto_summe = round(netto_summe * 1.19, 2)  # varsayılan %19 KDV
+#             except ValueError:
+#                 messages.error(request, "❌ Ungültige Zahl für Stunden oder Stundensatz.")
+#                 return redirect("manager_abrechnung")
+
+#             if edit_id:
+#                 # Güncelleme işlemi
+#                 abrechnung = get_object_or_404(Abrechnung, id=edit_id, projekt__in=projekte)
+#                 abrechnung.mitarbeiter_id = mitarbeiter_id
+#                 abrechnung.projekt_id = projekt_id
+#                 abrechnung.monat = monat
+#                 abrechnung.stunden = stunden
+#                 abrechnung.stundensatz = stundensatz
+#                 abrechnung.netto_summe = netto_summe
+#                 abrechnung.brutto_summe = brutto_summe
+#                 abrechnung.rechnung_status = rechnung_status
+#                 abrechnung.zahlungseingang = zahlungseingang or None
+#                 abrechnung.leistungsnachweis = leistungsnachweis
+#                 abrechnung.bemerkung = bemerkung
+#                 abrechnung.save()
+#                 messages.success(request, "✅ Abrechnung wurde erfolgreich aktualisiert.")
+#             else:
+#                 # Yeni Abrechnung oluşturma
+#                 Abrechnung.objects.create(
+#                     mitarbeiter_id=mitarbeiter_id,
+#                     projekt_id=projekt_id,
+#                     monat=monat,
+#                     stunden=stunden,
+#                     stundensatz=stundensatz,
+#                     netto_summe=netto_summe,
+#                     brutto_summe=brutto_summe,
+#                     rechnung_status=rechnung_status,
+#                     zahlungseingang=zahlungseingang or None,
+#                     leistungsnachweis=leistungsnachweis,
+#                     bemerkung=bemerkung
+#                 )
+#                 messages.success(request, "✅ Abrechnung wurde erfolgreich erstellt.")
+#         else:
+#             messages.error(request, "⚠️ Bitte füllen Sie alle Pflichtfelder aus.")
+
+#         return redirect("manager_abrechnung")
+
+#     # Tabloda sadece kendi projeleri ve atanmış projelere ait Abrechnung'ları gösteriyoruz
+#     return render(request, "manager_pages/manager_abrechnung.html", {
+#         "abrechnungen": page_obj,
+#         "projekte": projekte  # sadece manager'ın oluşturduğu ve atandığı projeleri listeleyerek seçtirme
+#     })
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abrechnung_delete(request, id):
+#     user = request.user
+
+#     # İlgili Abrechnung kaydını getir
+#     abrechnung = get_object_or_404(Abrechnung, id=id)
+
+#     # Sadece kendi oluşturduğu projeye ait bir Abrechnung silinebilir
+#     if abrechnung.projekt.erstellt_von != user:
+#         messages.error(request, "❌ Sie dürfen nur Abrechnungen Ihrer eigenen Projekte löschen.")
+#         return redirect("manager_abrechnung")
+
+#     # Silme işlemi
+#     abrechnung.delete()
+#     messages.success(request, "🗑️ Abrechnung wurde erfolgreich gelöscht.")
+#     return redirect("manager_abrechnung")
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_abrechnung_export(request):
+#     user = request.user
+
+#     # Manager'ın oluşturduğu veya atandığı projelerin ID'leri
+#     projekte_ids = Projekt.objects.filter(Q(erstellt_von=user) | Q(manager=user)).values_list("id", flat=True)
+#     abrechnungen = Abrechnung.objects.filter(projekt__in=projekte_ids)
+
+#     # CSV export
+#     response = HttpResponse(content_type='text/csv; charset=utf-8')
+#     response['Content-Disposition'] = 'attachment; filename="abrechnungen.csv"'
+#     response.write('\ufeff')  # BOM for Excel
+
+#     writer = csv.writer(response)
+#     writer.writerow([
+#         'Projektname', 'Mitarbeiter', 'Monat', 'Stunden',
+#         'Netto Summe', 'Brutto Summe', 'Rechnungsstatus',
+#         'Zahlungseingang', 'Leistungsnachweis', 'Bemerkung'
+#     ])
+
+#     for abrechnung in abrechnungen:
+#         writer.writerow([
+#             abrechnung.projekt.projektname,
+#             f"{abrechnung.mitarbeiter.vorname} {abrechnung.mitarbeiter.nachname}",
+#             abrechnung.monat,
+#             abrechnung.stunden,
+#             abrechnung.netto_summe,
+#             abrechnung.brutto_summe,
+#             abrechnung.rechnung_status,
+#             abrechnung.zahlungseingang,
+#             abrechnung.leistungsnachweis,
+#             abrechnung.bemerkung
+#         ])
+
+#     return response
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_reisebericht_view(request):
+#     user = request.user
+
+#     # Manager'ın oluşturduğu projeler ve atandığı projeler
+#     eigene_projekte = Projekt.objects.filter(erstellt_von=user)
+#     zugewiesene_projekte = Projekt.objects.filter(manager=user)
+#     projekte = eigene_projekte | zugewiesene_projekte
+
+#     # Tabloda gösterilecek Reisebericht'ler
+#     projekte_ids = projekte.values_list("id", flat=True)
+#     reiseberichte = Reisebericht.objects.filter(projekt__in=projekte_ids)
+
+#     # 🔍 Filtreleme
+#     zielort = request.GET.get('zielort')
+#     startdatum = request.GET.get('startdatum')
+#     enddatum = request.GET.get('enddatum')
+
+#     if zielort:
+#         reiseberichte = reiseberichte.filter(zielort__icontains=zielort)
+#     if startdatum:
+#         reiseberichte = reiseberichte.filter(datum__gte=startdatum)
+#     if enddatum:
+#         reiseberichte = reiseberichte.filter(datum__lte=enddatum)
+
+#     # Sayfalama
+#     paginator = Paginator(reiseberichte, 10)
+#     page_number = request.GET.get('page')
+#     page_obj = paginator.get_page(page_number)
+
+#     # POST işlemi (Ekleme ve Güncelleme)
+#     if request.method == "POST":
+#         mitarbeiter_id = request.POST.get("mitarbeiter")
+#         projekt_id = request.POST.get("projekt")
+#         datum = request.POST.get("datum")
+#         zielort = request.POST.get("zielort")
+#         verkehrsmittel = request.POST.get("verkehrsmittel")
+#         distanz_km = request.POST.get("distanz_km")
+#         kosten_fahrt = request.POST.get("kosten_fahrt")
+#         hotel_name = request.POST.get("hotel_name")
+#         kosten_übernachtung = request.POST.get("kosten_übernachtung")
+#         rechnung_vorhanden = request.POST.get("rechnung_vorhanden")
+#         gesamtkosten = 0
+#         edit_id = request.POST.get("edit_id")
+
+#         # 🛡️ Yetki kontrolü: sadece kendi projelerine kayıt yapılabilir
+#         if not Projekt.objects.filter(id=projekt_id, erstellt_von=user).exists():
+#             messages.error(request, "❌ Sie dürfen nur Reiseberichte zu Ihren eigenen Projekten hinzufügen oder bearbeiten.")
+#             return redirect("manager_reisebericht")
+
+#         try:
+#             kosten_fahrt = float(kosten_fahrt)
+#             kosten_übernachtung = float(kosten_übernachtung)
+#             gesamtkosten = kosten_fahrt + kosten_übernachtung
+#         except (ValueError, TypeError):
+#             messages.error(request, "❌ Kosten müssen gültige Zahlen sein.")
+#             return redirect("manager_reisebericht")
+
+#         if mitarbeiter_id and projekt_id and datum and zielort and verkehrsmittel:
+#             if edit_id:
+#                 # ✏️ Güncelleme
+#                 reisebericht = get_object_or_404(Reisebericht, id=edit_id, projekt__erstellt_von=user)
+#                 reisebericht.mitarbeiter_id = mitarbeiter_id
+#                 reisebericht.projekt_id = projekt_id
+#                 reisebericht.datum = datum
+#                 reisebericht.zielort = zielort
+#                 reisebericht.verkehrsmittel = verkehrsmittel
+#                 reisebericht.distanz_km = distanz_km or 0
+#                 reisebericht.kosten_fahrt = kosten_fahrt
+#                 reisebericht.hotel_name = hotel_name
+#                 reisebericht.kosten_übernachtung = kosten_übernachtung
+#                 reisebericht.gesamtkosten = gesamtkosten
+#                 reisebericht.rechnung_vorhanden = rechnung_vorhanden
+#                 reisebericht.save()
+#                 messages.success(request, "✅ Reisebericht wurde erfolgreich aktualisiert.")
+#             else:
+#                 # ➕ Yeni Kayıt
+#                 Reisebericht.objects.create(
+#                     mitarbeiter_id=mitarbeiter_id,
+#                     projekt_id=projekt_id,
+#                     datum=datum,
+#                     zielort=zielort,
+#                     verkehrsmittel=verkehrsmittel,
+#                     distanz_km=distanz_km or 0,
+#                     kosten_fahrt=kosten_fahrt,
+#                     hotel_name=hotel_name,
+#                     kosten_übernachtung=kosten_übernachtung,
+#                     gesamtkosten=gesamtkosten,
+#                     rechnung_vorhanden=rechnung_vorhanden
+#                 )
+#                 messages.success(request, "✅ Reisebericht wurde erfolgreich erstellt.")
+#         else:
+#             messages.error(request, "⚠️ Bitte füllen Sie alle Pflichtfelder aus.")
+
+#         return redirect("manager_reisebericht")
+
+#     return render(request, 'manager_pages/manager_reisebericht.html', {
+#         'reiseberichte': page_obj,
+#         'projekte': projekte  # Manager sadece kendi projelerini görebilecek
+#     })
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_reisebericht_delete(request, id):
+#     user = request.user
+#     reisebericht = get_object_or_404(Reisebericht, id=id)
+
+#     if reisebericht.projekt.erstellt_von != user:
+#         messages.error(request, "❌ Sie dürfen nur Reiseberichte Ihrer eigenen Projekte löschen.")
+#         return redirect("manager_reisebericht")
+
+#     reisebericht.delete()
+#     messages.success(request, "🗑️ Reisebericht wurde erfolgreich gelöscht.")
+#     return redirect("manager_reisebericht")
+
+
+# @login_required
+# @user_passes_test(is_manager)
+# def manager_reisebericht_export(request):
+#     user = request.user
+    
+#     # Manager'ın oluşturduğu projeler ve atanmış projeler
+#     eigene_projekte = Projekt.objects.filter(erstellt_von=user)
+#     zugewiesene_projekte = Projekt.objects.filter(manager=user)
+
+#     # Tüm projelerin birleşimi
+#     projekte = eigene_projekte | zugewiesene_projekte
+
+#     # Reisebericht verilerini al
+#     reiseberichte = Reisebericht.objects.filter(projekt__in=projekte)
+
+#     # CSV formatında bir response oluştur
+#     response = HttpResponse(content_type='text/csv')
+#     response['Content-Disposition'] = 'attachment; filename="reiseberichte.csv"'
+
+#     writer = csv.writer(response)
+#     writer.writerow(['Mitarbeiter', 'Zielort', 'Datum', 'Verkehrsmittel', 'Distanz (km)', 'Kosten Fahrt', 'Hotel Name', 'Kosten Übernachtung', 'Gesamtkosten', 'Rechnung Vorhanden'])
+
+#     for reisebericht in reiseberichte:
+#         writer.writerow([reisebericht.mitarbeiter, 
+#                          reisebericht.zielort, 
+#                          reisebericht.datum.strftime("%d.%m.%Y"), 
+#                          reisebericht.verkehrsmittel, 
+#                          reisebericht.distanz_km, 
+#                          reisebericht.kosten_fahrt, 
+#                          reisebericht.hotel_name, 
+#                          reisebericht.kosten_übernachtung, 
+#                          reisebericht.gesamtkosten, 
+#                          reisebericht.rechnung_vorhanden])
+
+#     return response
+
 
 
 @login_required

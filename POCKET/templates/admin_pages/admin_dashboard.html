@@ -43,7 +43,7 @@
     <!-- Grafikler -->
     <div class="row mb-4 justify-content-center text-center gap-4">
         <div class="col-md-4 text-center">
-        <h5> Kostenverteilung nach Kategorie</h5>
+        <h5> Ausgabenverteilung nach Kategorie</h5>
         <canvas id="kostenKategorieChart"
                 class="dashboard-chart"
                 data-abrechnung="{{ category_data.Abrechnung|default:0 }}"
@@ -53,7 +53,7 @@
         </div>
 
         <div class="col-md-4 text-center">
-        <h5> Einnahmen vs Kosten</h5>
+        <h5> Einnahmen vs Ausgaben</h5>
         <canvas id="einnahmeVsKostenChart"
                 class="dashboard-chart"
                 data-einnahmen="{{ einnahme_vs_kosten_data.Einnahmen|default:0 }}"
@@ -97,7 +97,7 @@
         <a href="{% url 'admin_einnahmen' %}" class="btn btn-light border w-100 text-start p-3 position-relative">
             💰 Einnahmen<br><small class="text-muted">Projektbasierte Einnahmen</small>
             <span class="position-absolute top-0 end-0 mt-2 me-2 badge rounded-pill bg-danger">
-                {{ total_einnahmen|floatformat:2 }} €
+                {{ total_einnahmen_count }}
             </span>
         </a>
     </div>

@@ -6,118 +6,118 @@
     <h2 class="page-title">📚 Schulungskosten verwalten</h2>
 
     <div class="d-flex flex-wrap gap-3">
-        <!-- 📋 Sol: Liste ve arama -->
+
+        <!-- 📋 Liste + Arama -->
         <div class="flex-grow-1">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <button class="btn ab-btn-custom ab-btn-add" onclick="toggleModal('addSchulungModal')">
-                    ➕ Neue Schulung erfassen
+                    ➕ Neue Schulung
                 </button>
                 <div class="d-flex gap-2 align-items-center ms-auto flex-nowrap">
-                    <input type="text" id="schulungSearch" class="form-control ab-search" placeholder="🔍 Schulungseinträge durchsuchen...">
-                    <a href="{% url 'export_schulungskosten' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp export-btn">
+                    <input type="text" id="schulungSearch" class="form-control ab-search" placeholder="🔍 Schulungskosten suchen">
+
+                    <!-- Dropdown filtre -->
+                    <div class="dropdown">
+                        <button class="btn ab-btn-custom ab-btn-exp dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            📑 Filter
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 ab-filter-dropdown" aria-labelledby="filterDropdown" style="min-width: 250px;">
+                            <form method="get" class="d-grid gap-2">
+                                <select name="mitarbeiter_id" class="form-control form-control-sm">
+                                    <option value="">👤 Alle Mitarbeiter</option>
+                                    {% for m in mitarbeiter %}
+                                        <option value="{{ m.id }}" {% if m.id|stringformat:"s" == request.GET.mitarbeiter_id %}selected{% endif %}>
+                                            {{ m.vorname }} {{ m.nachname }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <select name="teilgenommen" class="form-control form-control-sm">
+                                    <option value="">📝 Alle Einträge</option>
+                                    <option value="Ja" {% if request.GET.teilgenommen == "Ja" %}selected{% endif %}>Teilgenommen</option>
+                                    <option value="Nein" {% if request.GET.teilgenommen == "Nein" %}selected{% endif %}>Nicht teilgenommen</option>
+                                </select>
+                                <input type="date" name="start" class="form-control form-control-sm" value="{{ request.GET.start }}">
+                                <input type="date" name="end" class="form-control form-control-sm" value="{{ request.GET.end }}">
+                                <button type="submit" class="btn ab-primary-btn">Filtern</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'export_schulungskosten' %}?{{ request.GET.urlencode }}" class="btn ab-btn-custom ab-btn-exp">
                         <span class="export-symbol">📤</span> Exportieren
                     </a>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-bordered" id="schulungTable">
+                <table class="table table-bordered ab-tabelle" id="schulungTable">
                     <thead>
                         <tr>
+                            <th>Nr.</th>
                             <th onclick="sortSchulungTable(0)">Datum 🔽</th>
                             <th onclick="sortSchulungTable(1)">Mitarbeiter 🔽</th>
                             <th onclick="sortSchulungTable(2)">Typ 🔽</th>
-                            <th onclick="sortSchulungTable(3)">Dauer (Tage) 🔽</th>
+                            <th onclick="sortSchulungTable(3)">Dauer 🔽</th>
                             <th onclick="sortSchulungTable(4)">Kosten (€) 🔽</th>
                             <th>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if schulungen %}
-                            {% for eintrag in schulungen %}
-                                <tr>
-                                    <td>{{ eintrag.datum_start|date:"d.m.Y" }}</td>
-                                    <td>{{ eintrag.mitarbeiter.vorname }} {{ eintrag.mitarbeiter.nachname }}</td>
-                                    <td>{{ eintrag.schulungstyp }}</td>
-                                    <td>{{ eintrag.dauer }}</td>
-                                    <td>{{ eintrag.kosten }}</td>
-                                    <td class="ab-actions">
-                                        <a href="#" class="edit-schulung-btn"
-                                           data-id="{{ eintrag.id }}"
-                                           data-mitarbeiter-id="{{ eintrag.mitarbeiter.id }}"
-                                           {% if eintrag.projekt %}
-                                               data-projekt-id="{{ eintrag.projekt.id }}"
-                                           {% else %}
-                                               data-projekt-id=""
-                                           {% endif %}
-                                           data-schulungstyp="{{ eintrag.schulungstyp|escapejs }}"
-                                           data-datum-start="{{ eintrag.datum_start|date:'Y-m-d' }}"
-                                           data-datum-ende="{{ eintrag.datum_ende|date:'Y-m-d' }}"
-                                           data-dauer="{{ eintrag.dauer }}"
-                                           data-kosten="{{ eintrag.kosten }}"
-                                           data-anbieter="{{ eintrag.anbieter|default_if_none:''|escapejs }}"
-                                           data-teilgenommen="{{ eintrag.teilgenommen }}"
-                                           data-beschreibung="{{ eintrag.beschreibung|default_if_none:''|escapejs }}">
-                                           ✏️ Bearbeiten
-                                        </a> |
-                                        <a href="{% url 'admin_schulung_delete' eintrag.id %}" onclick="return confirm('❗Wirklich löschen?')">🗑️ Löschen</a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted">
-                                    🔍 Keine Schulungseinträge gefunden.
-                                </td>
-                            </tr>
-                        {% endif %}
+                        {% for eintrag in schulungen %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ eintrag.datum_start|date:"d.m.Y" }}</td>
+                            <td>{{ eintrag.mitarbeiter.vorname }} {{ eintrag.mitarbeiter.nachname }}</td>
+                            <td>{{ eintrag.schulungstyp }}</td>
+                            <td>{{ eintrag.dauer }}</td>
+                            <td class="text-end">{{ eintrag.kosten }}</td>
+                            <td class="ab-actions">
+                                <a href="#" class="edit-schulung-btn"
+                                   data-id="{{ eintrag.id }}"
+                                   data-mitarbeiter-id="{{ eintrag.mitarbeiter.id }}"
+                                   {% if eintrag.projekt %}
+                                       data-projekt-id="{{ eintrag.projekt.id }}"
+                                   {% else %}
+                                       data-projekt-id=""
+                                   {% endif %}
+                                   data-schulungstyp="{{ eintrag.schulungstyp|escapejs }}"
+                                   data-datum-start="{{ eintrag.datum_start|date:'Y-m-d' }}"
+                                   data-datum-ende="{{ eintrag.datum_ende|date:'Y-m-d' }}"
+                                   data-dauer="{{ eintrag.dauer }}"
+                                   data-kosten="{{ eintrag.kosten }}"
+                                   data-anbieter="{{ eintrag.anbieter|default_if_none:''|escapejs }}"
+                                   data-teilgenommen="{{ eintrag.teilgenommen }}"
+                                   data-beschreibung="{{ eintrag.beschreibung|default_if_none:''|escapejs }}">
+                                   ✏️ Bearbeiten
+                                </a> |
+                                <a href="{% url 'admin_schulung_delete' eintrag.id %}" onclick="return confirm('❗Wirklich löschen?')">🗑️ Löschen</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">🔍 Keine Schulungseinträge gefunden.</td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <!-- 📄 Pagination -->
+
+            <!-- Pagination -->
             <div class="pagination mt-3">
                 <span class="step-links">
                     {% if schulungen.has_previous %}
-                        <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; erste</a>
-                        <a href="?page={{ schulungen.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">zurück</a>
+                        <a href="?page=1">&laquo; erste</a>
+                        <a href="?page={{ schulungen.previous_page_number }}">zurück</a>
                     {% endif %}
-
                     <span class="current">
                         Seite {{ schulungen.number }} von {{ schulungen.paginator.num_pages }}.
                     </span>
-
                     {% if schulungen.has_next %}
-                        <a href="?page={{ schulungen.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">weiter</a>
-                        <a href="?page={{ schulungen.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">letzte &raquo;</a>
+                        <a href="?page={{ schulungen.next_page_number }}">weiter</a>
+                        <a href="?page={{ schulungen.paginator.num_pages }}">letzte &raquo;</a>
                     {% endif %}
                 </span>
             </div>
-        </div>
-
-        <!-- 🎯 Sağ: Filtre paneli -->
-        <div class="card p-3 ab-filter-box" style="min-width: 260px; max-width: 300px; height: fit-content;">
-            <h5 class="ab-filter-title">🔎 Filteroptionen</h5>
-            <form method="get" class="d-grid gap-2">
-                <select name="mitarbeiter_id" class="form-control">
-                    <option value="">👤 Alle Mitarbeiter</option>
-                    {% for m in mitarbeiter %}
-                        <option value="{{ m.id }}" {% if m.id|stringformat:"s" == request.GET.mitarbeiter_id %}selected{% endif %}>
-                            {{ m.vorname }} {{ m.nachname }}
-                        </option>
-                    {% endfor %}
-                </select>
-
-                <select name="teilgenommen" class="form-control">
-                    <option value="">📝 Alle Einträge</option>
-                    <option value="Ja" {% if request.GET.teilgenommen == "Ja" %}selected{% endif %}>Teilgenommen</option>
-                    <option value="Nein" {% if request.GET.teilgenommen == "Nein" %}selected{% endif %}>Nicht teilgenommen</option>
-                </select>
-
-                <input type="date" name="start" class="form-control" value="{{ request.GET.start }}">
-                <input type="date" name="end" class="form-control" value="{{ request.GET.end }}">
-
-                <button type="submit" class="btn btn-primary mt-2">Filtern</button>
-            </form>
         </div>
     </div>
 </div>

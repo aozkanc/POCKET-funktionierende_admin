@@ -4,5 +4,3 @@ mysqlclient
 gunicorn
 Pillow
 django-simple-history
-
-

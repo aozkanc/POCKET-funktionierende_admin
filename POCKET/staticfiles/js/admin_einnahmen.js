@@ -39,3 +39,11 @@ function toggleModal(id, show = true) {
         modal.style.display = show ? "block" : "none";
     }
 }
+
+// Modal dışında tıklayınca kapatma
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('addEinnahmeModal'); // senin modal ID'in neyse
+    if (event.target === modal) {
+        toggleModal('addEinnahmeModal', false);
+    }
+});

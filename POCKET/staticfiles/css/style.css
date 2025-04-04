@@ -28,12 +28,13 @@ body {
     background-color: #f4f4f4;
     margin: 0;
     padding: 0;
+    font-size: 14px;
 }
 
 .page-title {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 600;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     color: #222;
 }
 
@@ -67,10 +68,12 @@ body {
     background-color: #b5e9f4;
     color: #000;
     border: 1px solid #7e90b7;
-    padding: 8px 16px;
+    padding: 4px 10px;
     font-weight: 500;
-    border-radius: 5px;
+    font-size: 13px;
+    border-radius: 4px;
     transition: background-color 0.3s;
+    height: 34px;
 }
 
 .ab-btn-custom:hover {
@@ -81,13 +84,14 @@ body {
 .plus-symbol,
 .export-symbol {
     color: black;
-    margin-right: 5px;
+    margin-right: 4px;
+    font-size: 14px;
 }
 
 .ab-btn-add {
-    width: 240px;
-    height: 44px;
-    text-align: center;
+    width: 180px;
+    height: 36px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -95,9 +99,9 @@ body {
 }
 
 .ab-btn-exp {
-    width: 150px;
-    height: 44px;
-    text-align: center;
+    width: 120px;
+    height: 36px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -109,10 +113,12 @@ body {
     border-color: #2563eb;
     color: white;
     font-weight: 500;
-    padding: 8px 16px;
-    border-radius: 5px;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 4px;
     border: 1px solid #2563eb;
     transition: background-color 0.3s ease;
+    height: 36px;
 }
 
 .ab-primary-btn:hover {
@@ -120,6 +126,7 @@ body {
     border-color: #1e40af;
     color: white;
 }
+
 
 /* ================== ARAMA ================== */
 .ab-search {
@@ -132,39 +139,8 @@ body {
     border: 1px solid #7e90b7;
 }
 
-/* ================== FİLTRE PANELİ ================== */
-.ab-filter-box {
-    background-color: #b5e9f4;
-    border: 1px solid #7e90b7;
-    padding: 20px;
-    border-radius: 10px;
-}
+/* ================== FİLTRE PANELİ ================== *
 
-.ab-filter-title {
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.ab-filter-box .form-control,
-.ab-filter-box button {
-    margin-bottom: 12px;
-}
-
-.ab-filter-date {
-    display: flex;
-    gap: 8px;
-}
-
-.ab-filter-box .btn-primary {
-    background-color: #3f63b1;
-    border-color: #2563eb;
-    color: white;
-}
-
-.ab-filter-box .btn-primary:hover {
-    background-color: #1e40af;
-    border-color: #1e40af;
-}
 
 /* ================== MODAL ================== */
 .modal {
@@ -229,54 +205,4 @@ body {
     display: block;
     margin: 0 auto !important;
 }
-
-
-
-/* Login Box genişliği */
-.login-box {
-    width: 350px;  /* Genişliği belirledim */
-    margin: 0 auto;  /* Ortalamak için */
-    padding: 20px;  /* İç boşlukları arttırdım */
-    border: 1px solid #7e90b7;  /* Kutu için kenarlık */
-    border-radius: 8px;  /* Yuvarlak köşe */
-    background-color: #fff;  /* Beyaz arka plan */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  /* Hafif gölge */
-}
-
-/* Küçültülmüş input ve buttonlar */
-.custom-input {
-    font-size: 14px;
-    padding: 8px 12px;  /* İç padding */
-    height: 36px;  /* Yüksekliği biraz daraltıyorum */
-    width: 80%;  /* Input genişliği %80 */
-    margin-bottom: 12px;  /* Alt boşluk */
-    border: 1px solid #ccc;  /* Kenarlık rengi */
-    border-radius: 4px;  /* Yuvarlak köşe */
-}
-
-/* Buton */
-.custom-btn {
-    font-size: 14px;
-    padding: 10px;  /* Butonun iç boşlukları */
-    width: 80%;  /* Buton genişliği %80 */
-    height: 40px;  /* Buton yüksekliği */
-    border-radius: 4px;  /* Buton köşe yuvarlama */
-    background-color: #3f63b1;  /* Buton rengi */
-    color: white;  /* Buton yazı rengi */
-    border: none;  /* Buton kenarlık kaldırıldı */
-    transition: background-color 0.3s;  /* Hover efekti */
-}
-
-.custom-btn:hover {
-    background-color: #2563eb;  /* Hover rengi */
-}
-
-/* Sayfa Merkezi hizalama */
-.container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 80vh;
-}
-
 
